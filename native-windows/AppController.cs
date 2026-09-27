@@ -33,11 +33,20 @@ namespace SnkMessage
             clipboardWatcher=new ClipboardWatcher(OnTextCopied);
         }
 
+        public void RestoreTray()
+        {
+            if(tray==null)return;
+            tray.Visible=false;tray.Visible=true;
+            if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")
+                File.WriteAllText(Path.Combine(Path.GetTempPath(),"SnkMessage.reactivated"),DateTime.UtcNow.ToString("O"));
+            tray.ShowBalloonTip(3000,"SnkMessage 已在运行","托盘图标已恢复。选中微信文字即可使用 AI Bar。",Forms.ToolTipIcon.Info);
+        }
+
         private void OnTextCopied(string text,IntPtr hwnd,int x,int y)
         {
             if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")
                 File.WriteAllText(Path.Combine(Path.GetTempPath(),"SnkMessage.copied"),DateTime.UtcNow.ToString("O"));
-            if(capturing)return;
+            if(capturing||!AppRestrictions.IsAllowedWindow(hwnd))return;
             var selected=SelectionService.FromCopiedText(text,hwnd,x,y);
             if(selected!=null)overlay.ShowFor(selected,x,y);
         }
@@ -50,7 +59,10 @@ namespace SnkMessage
                 if(capturing)return;capturing=true;
                 try
                 {
-                    var selected=await SelectionService.CaptureAsync(x,y,false);
+                    var point=new NativeMethods.POINT{X=x,Y=y};
+                    var target=NativeMethods.GetAncestor(NativeMethods.WindowFromPoint(point),NativeMethods.GA_ROOT);
+                    if(!AppRestrictions.IsAllowedWindow(target))return;
+                    var selected=await SelectionService.CaptureAsync(x,y,true);
                     if(selected==null)return;
                     double left=selected.Bounds.IsEmpty?x:selected.Bounds.Left;
                     double top=selected.Bounds.IsEmpty?y:selected.Bounds.Top;

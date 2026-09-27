@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Data;
 using System.IO;
 
 namespace SnkMessage
@@ -77,6 +78,9 @@ namespace SnkMessage
         private void AddMode(ContextMenu menu,string label,AiMode value)
         {
             var item=new MenuItem{Header=(mode==value?"✓  ":"    ")+label,Padding=new Thickness(8,6,8,6),FontSize=12};
+            item.MouseEnter+=delegate{item.Background=Brush("#E9E2FF");};
+            item.MouseLeave+=delegate{item.Background=Brush("#00FFFFFF");};
+            item.PreviewMouseLeftButtonDown+=delegate{item.Background=Brush("#E1D9FF");};
             item.Click+=async delegate{mode=value;ShowBar();await RunAsync();};menu.Items.Add(item);
         }
 
@@ -107,6 +111,8 @@ namespace SnkMessage
                 foreach(string suggestion in Suggestions(context.Text,mode))
                 {
                     var button=FlatButton(suggestion,12);button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(8);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#FDFDFF");
+                    button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");
+                    ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#FDFDFF",true);
                     button.Click+=delegate { var h=SuggestionChosen;if(h!=null)h(suggestion,context);Hide(); };panel.Children.Add(button);
                 }
             }
@@ -146,7 +152,33 @@ namespace SnkMessage
         }
 
         private static TextBlock ResultText(string text){return new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17,Padding=new Thickness(6),Background=Brush("#CCFFFFFF")};}
-        private static Button FlatButton(string text,double size){return new Button{Content=text,FontSize=size,Background=Brush("#00FFFFFF"),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,Padding=new Thickness(4)};}
+        private static Button FlatButton(string text,double size)
+        {
+            var button=new Button{Content=text,FontSize=size,Background=Brush("#00FFFFFF"),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,Padding=new Thickness(4),Template=ButtonTemplate()};
+            ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#00FFFFFF",false);return button;
+        }
+        private static ControlTemplate ButtonTemplate()
+        {
+            var border=new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty,new Binding("Background"){RelativeSource=RelativeSource.TemplatedParent});
+            border.SetBinding(Border.BorderBrushProperty,new Binding("BorderBrush"){RelativeSource=RelativeSource.TemplatedParent});
+            border.SetBinding(Border.BorderThicknessProperty,new Binding("BorderThickness"){RelativeSource=RelativeSource.TemplatedParent});
+            border.SetValue(Border.CornerRadiusProperty,new CornerRadius(6));
+            var content=new FrameworkElementFactory(typeof(ContentPresenter));
+            content.SetBinding(ContentPresenter.ContentProperty,new Binding("Content"){RelativeSource=RelativeSource.TemplatedParent});
+            content.SetBinding(ContentPresenter.MarginProperty,new Binding("Padding"){RelativeSource=RelativeSource.TemplatedParent});
+            content.SetBinding(ContentPresenter.HorizontalAlignmentProperty,new Binding("HorizontalContentAlignment"){RelativeSource=RelativeSource.TemplatedParent});
+            content.SetBinding(ContentPresenter.VerticalAlignmentProperty,new Binding("VerticalContentAlignment"){RelativeSource=RelativeSource.TemplatedParent});
+            border.AppendChild(content);return new ControlTemplate(typeof(Button)){VisualTree=border};
+        }
+        private static void ApplyInteractionColors(Button button,string hover,string pressed,string normal,bool showBorder)
+        {
+            bool down=false;
+            button.MouseEnter+=delegate{if(!down)button.Background=Brush(hover);if(showBorder)button.BorderBrush=Brush("#C4C0FD");};
+            button.MouseLeave+=delegate{down=false;button.Background=Brush(normal);if(showBorder)button.BorderBrush=Brush("#00FFFFFF");};
+            button.PreviewMouseLeftButtonDown+=delegate{down=true;button.Background=Brush(pressed);};
+            button.PreviewMouseLeftButtonUp+=delegate{down=false;button.Background=button.IsMouseOver?Brush(hover):Brush(normal);};
+        }
         private static string ModeName(AiMode value){return value==AiMode.Interpret?"解读":value==AiMode.Reply?"回复建议":"表达优化";}
         private static Brush Brush(string hex){return new BrushConverter().ConvertFromString(hex) as Brush;}
     }
