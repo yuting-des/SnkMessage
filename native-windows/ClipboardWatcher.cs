@@ -21,25 +21,25 @@ namespace SnkMessage
             {
                 uint current=NativeMethods.GetClipboardSequenceNumber();
                 if(current==0||current==lastSequence)return;
-                lastSequence=current;
                 Mark("sequence");
-                ReadClipboard();
+                if(ReadClipboard())lastSequence=current;
             };
             timer.Start();
         }
 
-        private void ReadClipboard()
+        private bool ReadClipboard()
         {
-            if (ClipboardActivity.IsSuppressed) return;
+            if (ClipboardActivity.IsSuppressed) return true;
             string text = null;
-            try { if (Clipboard.ContainsText()) text=Clipboard.GetText(); } catch { return; }
-            if (String.IsNullOrWhiteSpace(text)) return;
+            try { if (Clipboard.ContainsText()) text=Clipboard.GetText(); } catch { return false; }
+            if (String.IsNullOrWhiteSpace(text)) return true;
             Mark("clipboard");
-            if (text==lastText && (DateTime.UtcNow-lastRaised).TotalMilliseconds<700) return;
+            if (text==lastText && (DateTime.UtcNow-lastRaised).TotalMilliseconds<700) return true;
             lastText=text;lastRaised=DateTime.UtcNow;
             NativeMethods.POINT point;
             if (!NativeMethods.GetCursorPos(out point)) point=new NativeMethods.POINT{X=0,Y=0};
             if (onTextCopied!=null) onTextCopied(text,NativeMethods.GetForegroundWindow(),point.X,point.Y);
+            return true;
         }
 
         public void Dispose()

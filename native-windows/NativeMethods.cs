@@ -23,6 +23,9 @@ namespace SnkMessage
         internal struct POINT { public int X; public int Y; }
 
         [StructLayout(LayoutKind.Sequential)]
+        internal struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
         internal struct MSLLHOOKSTRUCT
         {
             public POINT pt;
@@ -50,6 +53,10 @@ namespace SnkMessage
 
         [DllImport("user32.dll")]
         internal static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
