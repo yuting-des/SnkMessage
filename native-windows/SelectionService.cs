@@ -70,7 +70,7 @@ namespace SnkMessage
     {
         public static async Task<SelectionContext> CaptureAsync(int x, int y, bool allowClipboardFallback)
         {
-            await Task.Delay(90);
+            await Task.Delay(180);
             var point = new NativeMethods.POINT { X = x, Y = y };
             IntPtr hwnd = NativeMethods.GetAncestor(NativeMethods.WindowFromPoint(point), NativeMethods.GA_ROOT);
             uint pid; NativeMethods.GetWindowThreadProcessId(hwnd, out pid);
@@ -158,13 +158,18 @@ namespace SnkMessage
 
         private static async Task<string> CopySelectionPreservingClipboard()
         {
-            ClipboardActivity.Suppress(900);
+            ClipboardActivity.Suppress(1400);
             System.Windows.IDataObject original = null;
-            try { original = Clipboard.GetDataObject(); Clipboard.Clear(); } catch { }
+            uint before=NativeMethods.GetClipboardSequenceNumber();
+            try { original = Clipboard.GetDataObject(); Clipboard.Clear(); before=NativeMethods.GetClipboardSequenceNumber(); } catch { }
             NativeMethods.SendShortcut(NativeMethods.VK_C);
-            await Task.Delay(150);
             string text = null;
-            try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { }
+            for(int i=0;i<12 && String.IsNullOrWhiteSpace(text);i++)
+            {
+                await Task.Delay(50);
+                if(NativeMethods.GetClipboardSequenceNumber()==before)continue;
+                try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { }
+            }
             try { if (original != null) Clipboard.SetDataObject(original, true); else Clipboard.Clear(); } catch { }
             return text;
         }

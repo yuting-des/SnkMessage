@@ -16,6 +16,8 @@ namespace SnkMessage
         internal const byte VK_C = 0x43;
         internal const byte VK_V = 0x56;
         internal const uint KEYEVENTF_KEYUP = 0x0002;
+        internal const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        internal const uint MOUSEEVENTF_LEFTUP = 0x0004;
 
         internal delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
 
@@ -62,6 +64,13 @@ namespace SnkMessage
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetCursorPos(out POINT point);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetCursorPos(int x, int y);
+
+        [DllImport("user32.dll")]
+        internal static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool AddClipboardFormatListener(IntPtr hwnd);
@@ -94,6 +103,11 @@ namespace SnkMessage
             keybd_event(key, 0, 0, UIntPtr.Zero);
             keybd_event(key, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
             keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+
+        internal static void ClickAt(int x,int y)
+        {
+            SetCursorPos(x,y);mouse_event(MOUSEEVENTF_LEFTDOWN,0,0,0,UIntPtr.Zero);mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,UIntPtr.Zero);
         }
     }
 }

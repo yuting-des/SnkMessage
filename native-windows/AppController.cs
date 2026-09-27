@@ -55,7 +55,7 @@ namespace SnkMessage
         {
             app.Dispatcher.BeginInvoke(new Action(async delegate
             {
-                if(!dragged){if(overlay.IsVisible&&!overlay.IsMouseOver)overlay.Hide();return;}
+                if(!dragged){overlay.HandleGlobalClick(x,y);return;}
                 if(capturing)return;capturing=true;
                 try
                 {
@@ -72,9 +72,9 @@ namespace SnkMessage
             }));
         }
 
-        private async void OnSuggestionChosen(string text,SelectionContext context)
+        private async void OnSuggestionChosen(string text,SelectionContext context,AiMode selectedMode)
         {
-            bool inserted=await InsertSuggestion(text,context);
+            bool inserted=await InsertSuggestion(text,context,selectedMode);
             if(!inserted)
             {
                 ClipboardActivity.Suppress(700);
@@ -83,7 +83,7 @@ namespace SnkMessage
             }
         }
 
-        private static async Task<bool> InsertSuggestion(string text,SelectionContext context)
+        private static async Task<bool> InsertSuggestion(string text,SelectionContext context,AiMode selectedMode)
         {
             try
             {
@@ -102,13 +102,31 @@ namespace SnkMessage
                         var rect=edit.Current.BoundingRectangle;if(rect.Bottom>bestY){best=edit;bestY=rect.Bottom;}
                     }catch{}
                 }
-                if(best==null)return false;
+                if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode);
                 object raw;
                 if(best.TryGetCurrentPattern(ValuePattern.Pattern,out raw)&&!((ValuePattern)raw).Current.IsReadOnly)
                 {
                     best.SetFocus();((ValuePattern)raw).SetValue(text);return true;
                 }
                 best.SetFocus();return await PasteText(text,context.TargetWindow);
+            }
+            catch{return false;}
+        }
+
+        private static async Task<bool> PasteIntoWeChatComposer(string text,SelectionContext context,AiMode selectedMode)
+        {
+            try
+            {
+                NativeMethods.RECT rect;if(!NativeMethods.GetWindowRect(context.TargetWindow,out rect))return false;
+                NativeMethods.SetForegroundWindow(context.TargetWindow);await Task.Delay(80);
+                bool selectionIsInComposer=context.Bounds.Top>rect.Top+(rect.Bottom-rect.Top)*0.62;
+                if(selectedMode!=AiMode.Polish||!selectionIsInComposer)
+                {
+                    int x=rect.Left+(rect.Right-rect.Left)*2/3;
+                    int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
+                    NativeMethods.ClickAt(x,y);await Task.Delay(100);
+                }
+                return await PasteText(text,context.TargetWindow);
             }
             catch{return false;}
         }
