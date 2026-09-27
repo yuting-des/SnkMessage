@@ -98,4 +98,14 @@ messages.addEventListener('scroll',()=>{if(state.phase!=='idle')dispatch({type:'
 window.addEventListener('scroll',()=>{if(state.phase!=='idle')dispatch({type:'DISMISS'});});
 render();
 
+if (window.snkWindow) {
+ const controls=$('#desktop-controls');controls.hidden=false;document.body.classList.add('desktop-app');
+ const topButton=$('#toggle-top');
+ const setTop=active=>{topButton.setAttribute('aria-pressed',String(active));topButton.textContent=active?'置顶':'未置顶';topButton.title=active?'取消置顶':'保持置顶';};
+ window.snkWindow.isAlwaysOnTop().then(setTop);
+ topButton.addEventListener('click',async()=>setTop(await window.snkWindow.toggleAlwaysOnTop()));
+ $('#minimize-window').addEventListener('click',()=>window.snkWindow.minimize());
+ $('#hide-window').addEventListener('click',()=>window.snkWindow.hide());
+}
+
 
