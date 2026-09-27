@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.IO;
 
 namespace SnkMessage
 {
@@ -20,7 +21,7 @@ namespace SnkMessage
 
         public OverlayWindow()
         {
-            Width=88; Height=34; WindowStyle=WindowStyle.None; ResizeMode=ResizeMode.NoResize;
+            Width=88; Height=34; WindowStyle=WindowStyle.None; ResizeMode=ResizeMode.NoResize; Title="SnkMessage AI";
             AllowsTransparency=true; Background=Brushes.Transparent; Topmost=true; ShowInTaskbar=false;
             ShowActivated=false;
             shell = new Border {
@@ -46,6 +47,8 @@ namespace SnkMessage
             Left=Math.Max(8, Math.Min(x, SystemParameters.VirtualScreenWidth-Width-8));
             Top=Math.Max(8, Math.Min(y-Height-8, SystemParameters.VirtualScreenHeight-Height-8));
             Show();
+            if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")
+                File.WriteAllText(Path.Combine(Path.GetTempPath(),"SnkMessage.overlay"),DateTime.UtcNow.ToString("O"));
         }
 
         private void ShowBar()

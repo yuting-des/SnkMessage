@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
+using System.IO;
 using Forms = System.Windows.Forms;
 
 namespace SnkMessage
@@ -12,6 +13,7 @@ namespace SnkMessage
         private readonly Application app;
         private readonly OverlayWindow overlay;
         private GlobalSelectionWatcher watcher;
+        private ClipboardWatcher clipboardWatcher;
         private Forms.NotifyIcon tray;
         private bool capturing;
 
@@ -28,6 +30,16 @@ namespace SnkMessage
             menu.Items.Add("退出",null,delegate{app.Shutdown();});tray.ContextMenuStrip=menu;
             tray.ShowBalloonTip(2500,"SnkMessage 已启动","拖动选中文字即可唤起 AI Bar。",Forms.ToolTipIcon.Info);
             watcher=new GlobalSelectionWatcher();watcher.MouseCompleted+=OnMouseCompleted;
+            clipboardWatcher=new ClipboardWatcher(OnTextCopied);
+        }
+
+        private void OnTextCopied(string text,IntPtr hwnd,int x,int y)
+        {
+            if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")
+                File.WriteAllText(Path.Combine(Path.GetTempPath(),"SnkMessage.copied"),DateTime.UtcNow.ToString("O"));
+            if(capturing)return;
+            var selected=SelectionService.FromCopiedText(text,hwnd,x,y);
+            if(selected!=null)overlay.ShowFor(selected,x,y);
         }
 
         private void OnMouseCompleted(int x,int y,bool dragged)
@@ -38,7 +50,7 @@ namespace SnkMessage
                 if(capturing)return;capturing=true;
                 try
                 {
-                    var selected=await SelectionService.CaptureAsync(x,y,true);
+                    var selected=await SelectionService.CaptureAsync(x,y,false);
                     if(selected==null)return;
                     double left=selected.Bounds.IsEmpty?x:selected.Bounds.Left;
                     double top=selected.Bounds.IsEmpty?y:selected.Bounds.Top;
@@ -53,6 +65,7 @@ namespace SnkMessage
             bool inserted=await InsertSuggestion(text,context);
             if(!inserted)
             {
+                ClipboardActivity.Suppress(700);
                 try{Clipboard.SetText(text);}catch{}
                 tray.ShowBalloonTip(3000,"建议已复制","未能自动定位输入框，请在微信输入框中粘贴。",Forms.ToolTipIcon.Info);
             }
@@ -91,13 +104,14 @@ namespace SnkMessage
         private static async Task<bool> PasteText(string text,IntPtr target)
         {
             System.Windows.IDataObject old=null;
-            try{old=Clipboard.GetDataObject();Clipboard.SetText(text);NativeMethods.SetForegroundWindow(target);await Task.Delay(80);NativeMethods.SendShortcut(NativeMethods.VK_V);await Task.Delay(120);if(old!=null)Clipboard.SetDataObject(old,true);return true;}
+            try{ClipboardActivity.Suppress(900);old=Clipboard.GetDataObject();Clipboard.SetText(text);NativeMethods.SetForegroundWindow(target);await Task.Delay(80);NativeMethods.SendShortcut(NativeMethods.VK_V);await Task.Delay(120);if(old!=null)Clipboard.SetDataObject(old,true);return true;}
             catch{return false;}
         }
 
         public void Dispose()
         {
             if(watcher!=null)watcher.Dispose();
+            if(clipboardWatcher!=null)clipboardWatcher.Dispose();
             overlay.Close();
             if(tray!=null){tray.Visible=false;tray.Dispose();}
         }

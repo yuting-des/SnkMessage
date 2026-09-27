@@ -29,6 +29,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="NativeMethods.cs" />
     <Compile Include="SelectionService.cs" />
+    <Compile Include="ClipboardWatcher.cs" />
     <Compile Include="OverlayWindow.cs" />
     <Compile Include="AppController.cs" />
   </ItemGroup>

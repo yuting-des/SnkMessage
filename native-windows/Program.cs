@@ -12,7 +12,7 @@ namespace SnkMessage
         public static void Main()
         {
             bool created;
-            singleInstance = new Mutex(true, "SnkMessage.Native.Singleton", out created);
+            singleInstance = new Mutex(true, "SnkMessage.Native.Singleton.v2", out created);
             if (!created) return;
 
             var app = new Application();

@@ -8,6 +8,13 @@ using System.Windows.Automation;
 
 namespace SnkMessage
 {
+    internal static class ClipboardActivity
+    {
+        private static DateTime suppressedUntil = DateTime.MinValue;
+        public static bool IsSuppressed { get { return DateTime.UtcNow < suppressedUntil; } }
+        public static void Suppress(int milliseconds) { suppressedUntil = DateTime.UtcNow.AddMilliseconds(milliseconds); }
+    }
+
     internal sealed class SelectionContext
     {
         public string Text;
@@ -83,6 +90,17 @@ namespace SnkMessage
             };
         }
 
+        public static SelectionContext FromCopiedText(string text, IntPtr hwnd, int x, int y)
+        {
+            if (String.IsNullOrWhiteSpace(text)) return null;
+            uint pid=0;
+            if(hwnd!=IntPtr.Zero) NativeMethods.GetWindowThreadProcessId(hwnd, out pid);
+            if (pid != 0 && pid == (uint)Process.GetCurrentProcess().Id) return null;
+            AutomationElement element = null;
+            try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
+            return new SelectionContext { Text=text.Trim(), TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1) };
+        }
+
         private static bool ClipboardFallbackAllowed(uint processId)
         {
             try
@@ -140,6 +158,7 @@ namespace SnkMessage
 
         private static async Task<string> CopySelectionPreservingClipboard()
         {
+            ClipboardActivity.Suppress(900);
             System.Windows.IDataObject original = null;
             try { original = Clipboard.GetDataObject(); Clipboard.Clear(); } catch { }
             NativeMethods.SendShortcut(NativeMethods.VK_C);

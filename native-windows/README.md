@@ -4,4 +4,7 @@
 
 AI Bar 提供“解读 / 回复建议 / 表达优化”。当前生成内容仍为本地规则模拟。点击回复或优化建议时，程序尝试定位目标窗口最下方的可编辑控件并写入；定位失败时把建议复制到剪贴板。程序不会模拟 Enter 或点击发送。
 
-在 PowerShell 中运行 `./build.ps1`，产物位于 `bin/SnkMessage.exe`。当前目标为 .NET Framework 4.8。
+如果微信不能通过 UI Automation 暴露选区，选中文字后按 `Ctrl+C`。程序监听到新复制的文本后，会在当前鼠标位置附近显示 AI Bar。程序自身复制、粘贴和恢复剪贴板期间会暂停该监听，避免重复弹出。
+
+在 PowerShell 中运行 `./build.ps1`，产物会同步到 `../dist/SnkMessage-native-v0.2.exe`。当前目标为 .NET Framework 4.0。
+
