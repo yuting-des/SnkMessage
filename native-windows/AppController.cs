@@ -26,9 +26,9 @@ namespace SnkMessage
         {
             tray=new Forms.NotifyIcon{Icon=SystemIcons.Application,Text="SnkMessage",Visible=true};
             var menu=new Forms.ContextMenuStrip();
-            menu.Items.Add("显示使用说明",null,delegate{tray.ShowBalloonTip(3500,"SnkMessage","在微信或其他应用中拖动选中文字，AI Bar 会出现在选区附近。",Forms.ToolTipIcon.Info);});
+            menu.Items.Add("显示使用说明",null,delegate{tray.ShowBalloonTip(4500,"SnkMessage","在微信中拖动选中文字；若该区域无法直接读取，按 Ctrl+C 后 AI Bar 会出现。",Forms.ToolTipIcon.Info);});
             menu.Items.Add("退出",null,delegate{app.Shutdown();});tray.ContextMenuStrip=menu;
-            tray.ShowBalloonTip(2500,"SnkMessage 已启动","拖动选中文字即可唤起 AI Bar。",Forms.ToolTipIcon.Info);
+            tray.ShowBalloonTip(3500,"SnkMessage 已启动","选中文字即可唤起；无法直接读取的微信消息请按 Ctrl+C。",Forms.ToolTipIcon.Info);
             watcher=new GlobalSelectionWatcher();watcher.MouseCompleted+=OnMouseCompleted;
             clipboardWatcher=new ClipboardWatcher(OnTextCopied);
         }
@@ -62,7 +62,7 @@ namespace SnkMessage
                     var point=new NativeMethods.POINT{X=x,Y=y};
                     var target=NativeMethods.GetAncestor(NativeMethods.WindowFromPoint(point),NativeMethods.GA_ROOT);
                     if(!AppRestrictions.IsAllowedWindow(target))return;
-                    var selected=await SelectionService.CaptureAsync(x,y,true);
+                    var selected=await SelectionService.CaptureAsync(x,y);
                     if(selected==null)return;
                     double left=selected.Bounds.IsEmpty?x:selected.Bounds.Left;
                     double top=selected.Bounds.IsEmpty?y:selected.Bounds.Top;
@@ -77,7 +77,7 @@ namespace SnkMessage
             bool inserted=await InsertSuggestion(text,context,selectedMode);
             if(!inserted)
             {
-                ClipboardActivity.Suppress(700);
+                ClipboardActivity.Suppress(350);
                 try{Clipboard.SetText(text);}catch{}
                 tray.ShowBalloonTip(3000,"建议已复制","未能自动定位输入框，请在微信输入框中粘贴。",Forms.ToolTipIcon.Info);
             }
@@ -89,7 +89,7 @@ namespace SnkMessage
             {
                 if(context.SourceIsEditable && context.SourceElement!=null)
                 {
-                    context.SourceElement.SetFocus();return await PasteText(text,context.TargetWindow);
+                    context.SourceElement.SetFocus();await Task.Delay(60);return NativeMethods.SendUnicodeText(text);
                 }
                 var root=AutomationElement.FromHandle(context.TargetWindow);
                 var edits=root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Edit));
@@ -108,7 +108,7 @@ namespace SnkMessage
                 {
                     best.SetFocus();((ValuePattern)raw).SetValue(text);return true;
                 }
-                best.SetFocus();return await PasteText(text,context.TargetWindow);
+                best.SetFocus();await Task.Delay(60);return NativeMethods.SendUnicodeText(text);
             }
             catch{return false;}
         }
@@ -126,15 +126,8 @@ namespace SnkMessage
                     int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
                     NativeMethods.ClickAt(x,y);await Task.Delay(100);
                 }
-                return await PasteText(text,context.TargetWindow);
+                return NativeMethods.SendUnicodeText(text);
             }
-            catch{return false;}
-        }
-
-        private static async Task<bool> PasteText(string text,IntPtr target)
-        {
-            System.Windows.IDataObject old=null;
-            try{ClipboardActivity.Suppress(900);old=Clipboard.GetDataObject();Clipboard.SetText(text);NativeMethods.SetForegroundWindow(target);await Task.Delay(80);NativeMethods.SendShortcut(NativeMethods.VK_V);await Task.Delay(120);if(old!=null)Clipboard.SetDataObject(old,true);return true;}
             catch{return false;}
         }
 

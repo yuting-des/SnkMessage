@@ -60,7 +60,7 @@ namespace SnkMessage
 
         private void ShowBar()
         {
-            CloseMenu();highlight.Hide();shell.Padding=new Thickness(4);shell.Background=Brush("#EEFBFBFF");Width=mode==AiMode.Interpret?84:mode==AiMode.Reply?110:108;Height=30;
+            CloseMenu();highlight.Hide();shell.Padding=new Thickness(1);shell.Background=Brush("#EEFBFBFF");Width=mode==AiMode.Interpret?84:mode==AiMode.Reply?110:108;Height=30;
             var grid=new Grid();grid.ColumnDefinitions.Add(new ColumnDefinition());grid.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(24)});
             var action=FlatButton(IconLabel(SparkleIcon(20),ModeName(mode),13),13);action.Foreground=Brush("#5A2DFC");action.Click+=async delegate{await RunAsync();};
             var menuButton=FlatButton(DownIcon(),12);menuButton.Foreground=Brush("#5A2DFC");Grid.SetColumn(menuButton,1);menuButton.Click+=delegate{OpenModeMenu(menuButton);};grid.Children.Add(action);grid.Children.Add(menuButton);shell.Child=grid;
@@ -95,7 +95,7 @@ namespace SnkMessage
             if(mode==AiMode.Interpret)panel.Children.Add(ResultText(Interpret(context.Text)));
             else foreach(string suggestion in Suggestions(context.Text,mode))
             {
-                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.Height=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
+                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.Height=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,2,6,2);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
                 button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;Hide();if(h!=null)h(suggestion,context,selectedMode);};panel.Children.Add(button);
             }
             shell.Child=panel;
@@ -125,7 +125,7 @@ namespace SnkMessage
             var grid=new Grid{Width=20,Height=20,RenderTransformOrigin=new Point(.5,.5)};var canvas=new Canvas{Width=20,Height=20};for(int i=0;i<8;i++){double angle=i*Math.PI/4;var dot=new Ellipse{Width=3.2,Height=3.2,Fill=Brush("#5A2DFC"),Opacity=1-i*.1};Canvas.SetLeft(dot,8.4+6.5*Math.Sin(angle));Canvas.SetTop(dot,8.4-6.5*Math.Cos(angle));canvas.Children.Add(dot);}grid.Children.Add(canvas);var rotate=new RotateTransform();grid.RenderTransform=rotate;rotate.BeginAnimation(RotateTransform.AngleProperty,new DoubleAnimation(0,360,new Duration(TimeSpan.FromSeconds(1))){RepeatBehavior=RepeatBehavior.Forever});return grid;
         }
 
-        private static Button FlatButton(object content,double size){var button=new Button{Content=content,FontSize=size,Background=Brush("#00FFFFFF"),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,Padding=new Thickness(4),HorizontalContentAlignment=HorizontalAlignment.Center,VerticalContentAlignment=VerticalAlignment.Center,Template=ButtonTemplate()};ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#00FFFFFF",false);return button;}
+        private static Button FlatButton(object content,double size){var button=new Button{Content=content,FontSize=size,Background=Brush("#00FFFFFF"),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,Padding=new Thickness(4,0,4,0),HorizontalContentAlignment=HorizontalAlignment.Center,VerticalContentAlignment=VerticalAlignment.Center,Template=ButtonTemplate()};ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#00FFFFFF",false);return button;}
         private static ControlTemplate ButtonTemplate()
         {
             var border=new FrameworkElementFactory(typeof(Border));border.SetBinding(Border.BackgroundProperty,new Binding("Background"){RelativeSource=RelativeSource.TemplatedParent});border.SetBinding(Border.BorderBrushProperty,new Binding("BorderBrush"){RelativeSource=RelativeSource.TemplatedParent});border.SetBinding(Border.BorderThicknessProperty,new Binding("BorderThickness"){RelativeSource=RelativeSource.TemplatedParent});border.SetValue(Border.CornerRadiusProperty,new CornerRadius(6));var content=new FrameworkElementFactory(typeof(ContentPresenter));content.SetBinding(ContentPresenter.ContentProperty,new Binding("Content"){RelativeSource=RelativeSource.TemplatedParent});content.SetBinding(ContentPresenter.MarginProperty,new Binding("Padding"){RelativeSource=RelativeSource.TemplatedParent});content.SetBinding(ContentPresenter.HorizontalAlignmentProperty,new Binding("HorizontalContentAlignment"){RelativeSource=RelativeSource.TemplatedParent});content.SetBinding(ContentPresenter.VerticalAlignmentProperty,new Binding("VerticalContentAlignment"){RelativeSource=RelativeSource.TemplatedParent});border.AppendChild(content);return new ControlTemplate(typeof(Button)){VisualTree=border};

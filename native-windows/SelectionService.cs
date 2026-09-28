@@ -68,7 +68,7 @@ namespace SnkMessage
 
     internal static class SelectionService
     {
-        public static async Task<SelectionContext> CaptureAsync(int x, int y, bool allowClipboardFallback)
+        public static async Task<SelectionContext> CaptureAsync(int x, int y)
         {
             await Task.Delay(180);
             var point = new NativeMethods.POINT { X = x, Y = y };
@@ -80,14 +80,7 @@ namespace SnkMessage
             try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
             var context = TryAutomationSelection(element, hwnd);
             if (context != null) return context;
-            if (!allowClipboardFallback || !ClipboardFallbackAllowed(pid)) return null;
-
-            string text = await CopySelectionPreservingClipboard();
-            if (String.IsNullOrWhiteSpace(text)) return null;
-            return new SelectionContext {
-                Text = text.Trim(), TargetWindow = hwnd, SourceElement = element,
-                SourceIsEditable = IsEditable(element), Bounds = new Rect(x, y, 1, 1)
-            };
+            return null;
         }
 
         public static SelectionContext FromCopiedText(string text, IntPtr hwnd, int x, int y)
@@ -99,18 +92,6 @@ namespace SnkMessage
             AutomationElement element = null;
             try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
             return new SelectionContext { Text=text.Trim(), TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1) };
-        }
-
-        private static bool ClipboardFallbackAllowed(uint processId)
-        {
-            try
-            {
-                string name = Process.GetProcessById((int)processId).ProcessName.ToLowerInvariant();
-                string[] allowed = { "wechat", "weixin", "wechatappex", "notepad", "winword", "chrome", "msedge", "firefox", "teams", "slack" };
-                foreach (string candidate in allowed) if (name.Contains(candidate)) return true;
-            }
-            catch { }
-            return false;
         }
 
         private static SelectionContext TryAutomationSelection(AutomationElement start, IntPtr hwnd)
@@ -156,22 +137,5 @@ namespace SnkMessage
             catch { return false; }
         }
 
-        private static async Task<string> CopySelectionPreservingClipboard()
-        {
-            ClipboardActivity.Suppress(1400);
-            System.Windows.IDataObject original = null;
-            uint before=NativeMethods.GetClipboardSequenceNumber();
-            try { original = Clipboard.GetDataObject(); Clipboard.Clear(); before=NativeMethods.GetClipboardSequenceNumber(); } catch { }
-            NativeMethods.SendShortcut(NativeMethods.VK_C);
-            string text = null;
-            for(int i=0;i<12 && String.IsNullOrWhiteSpace(text);i++)
-            {
-                await Task.Delay(50);
-                if(NativeMethods.GetClipboardSequenceNumber()==before)continue;
-                try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { }
-            }
-            try { if (original != null) Clipboard.SetDataObject(original, true); else Clipboard.Clear(); } catch { }
-            return text;
-        }
     }
 }

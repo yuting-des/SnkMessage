@@ -16,6 +16,8 @@ namespace SnkMessage
         internal const byte VK_C = 0x43;
         internal const byte VK_V = 0x56;
         internal const uint KEYEVENTF_KEYUP = 0x0002;
+        internal const uint KEYEVENTF_UNICODE = 0x0004;
+        internal const uint INPUT_KEYBOARD = 1;
         internal const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         internal const uint MOUSEEVENTF_LEFTUP = 0x0004;
 
@@ -35,6 +37,22 @@ namespace SnkMessage
             public uint flags;
             public uint time;
             public UIntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct INPUT { public uint type; public INPUTUNION data; }
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal struct INPUTUNION { [FieldOffset(0)] public KEYBDINPUT keyboard; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct KEYBDINPUT
+        {
+            public ushort virtualKey;
+            public ushort scanCode;
+            public uint flags;
+            public uint time;
+            public UIntPtr extraInfo;
         }
 
         [DllImport("user32.dll", SetLastError = true)]
@@ -70,6 +88,9 @@ namespace SnkMessage
 
         [DllImport("user32.dll")]
         internal static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
+        [DllImport("user32.dll", SetLastError=true)]
+        internal static extern uint SendInput(uint count, INPUT[] inputs, int size);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -108,6 +129,18 @@ namespace SnkMessage
         internal static void ClickAt(int x,int y)
         {
             SetCursorPos(x,y);mouse_event(MOUSEEVENTF_LEFTDOWN,0,0,0,UIntPtr.Zero);mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,UIntPtr.Zero);
+        }
+
+        internal static bool SendUnicodeText(string text)
+        {
+            if(String.IsNullOrEmpty(text))return false;
+            var inputs=new INPUT[text.Length*2];
+            for(int i=0;i<text.Length;i++)
+            {
+                inputs[i*2]=new INPUT{type=INPUT_KEYBOARD,data=new INPUTUNION{keyboard=new KEYBDINPUT{scanCode=text[i],flags=KEYEVENTF_UNICODE}}};
+                inputs[i*2+1]=new INPUT{type=INPUT_KEYBOARD,data=new INPUTUNION{keyboard=new KEYBDINPUT{scanCode=text[i],flags=KEYEVENTF_UNICODE|KEYEVENTF_KEYUP}}};
+            }
+            return SendInput((uint)inputs.Length,inputs,Marshal.SizeOf(typeof(INPUT)))==(uint)inputs.Length;
         }
     }
 }
