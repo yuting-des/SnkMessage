@@ -3,3 +3,4 @@ dist/
 *.log
 native-windows/bin/
 native-windows/obj/
+.tools/

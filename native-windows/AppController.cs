@@ -19,7 +19,7 @@ namespace SnkMessage
 
         public AppController(Application application)
         {
-            app=application;overlay=new OverlayWindow();overlay.SuggestionChosen+=OnSuggestionChosen;
+            app=application;overlay=new OverlayWindow(AiServiceFactory.Create());overlay.SuggestionChosen+=OnSuggestionChosen;
         }
 
         public void Start()

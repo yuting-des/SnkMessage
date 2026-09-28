@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,20 +13,21 @@ using System.Windows.Shapes;
 
 namespace SnkMessage
 {
-    internal enum AiMode { Interpret, Reply, Polish }
-
     internal sealed class OverlayWindow : Window
     {
         private readonly Border shell;
         private readonly WindowHighlight highlight;
+        private readonly IAiService aiService;
         private Popup modePopup;
         private SelectionContext context;
         private AiMode mode=AiMode.Interpret;
         private int operationVersion;
+        private CancellationTokenSource operationCancellation;
         public event Action<string,SelectionContext,AiMode> SuggestionChosen;
 
-        public OverlayWindow()
+        public OverlayWindow(IAiService aiService)
         {
+            this.aiService=aiService;
             Width=84;Height=30;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;Title="SnkMessage AI";
             AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;UseLayoutRounding=true;SnapsToDevicePixels=true;
             shell=new Border{CornerRadius=new CornerRadius(10),BorderThickness=new Thickness(1),BorderBrush=Brush("#C4C0FD"),Background=Brush("#FFFBFBFF"),Padding=new Thickness(4),UseLayoutRounding=true,SnapsToDevicePixels=true};
@@ -41,7 +42,7 @@ namespace SnkMessage
 
         public void ShowFor(SelectionContext selection,double x,double y)
         {
-            operationVersion++;context=selection;ShowBar();if(!IsVisible){Opacity=0;Show();}
+            operationVersion++;CancelOperation();context=selection;ShowBar();if(!IsVisible){Opacity=0;Show();}
             var logical=DeviceToLogical(new Point(x,y));Left=Math.Max(SystemParameters.VirtualScreenLeft+8,Math.Min(logical.X+10,SystemParameters.VirtualScreenLeft+SystemParameters.VirtualScreenWidth-Width-8));
             double above=logical.Y-Height-10;Top=above<SystemParameters.VirtualScreenTop+8?logical.Y+16:above;Top=Math.Max(SystemParameters.VirtualScreenTop+8,Math.Min(Top,SystemParameters.VirtualScreenTop+SystemParameters.VirtualScreenHeight-Height-8));Opacity=1;
             if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")System.IO.File.WriteAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(),"SnkMessage.overlay"),DateTime.UtcNow.ToString("O"));
@@ -82,18 +83,41 @@ namespace SnkMessage
 
         private async Task RunAsync()
         {
-            int version=++operationVersion;CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;Width=mode==AiMode.Interpret?174:166;Height=34;shell.Padding=new Thickness(6);
+            if(context==null)return;
+            CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context.Text);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;Width=mode==AiMode.Interpret?174:166;Height=34;shell.Padding=new Thickness(6);
             shell.Child=IconLabel(LoadingIcon(),mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达",13);
-            await Task.Delay(650);if(version!=operationVersion||!IsVisible)return;highlight.Hide();ShowResult();
+            try
+            {
+                AiResult result=await aiService.GenerateAsync(request,cancellation.Token);
+                if(version!=operationVersion||!IsVisible||cancellation.IsCancellationRequested)return;
+                highlight.Hide();ShowResult(result);
+            }
+            catch(OperationCanceledException){ }
+            catch(AiServiceException error)
+            {
+                if(version!=operationVersion||!IsVisible)return;
+                highlight.Hide();ShowError(error.Message);
+            }
+            catch(Exception)
+            {
+                if(version!=operationVersion||!IsVisible)return;
+                highlight.Hide();ShowError("生成失败，请重新尝试。");
+            }
+            finally
+            {
+                if(ReferenceEquals(operationCancellation,cancellation))operationCancellation=null;
+                cancellation.Dispose();
+            }
         }
 
-        private void ShowResult()
+        private void ShowResult(AiResult result)
         {
             Width=mode==AiMode.Interpret?267:280;Height=mode==AiMode.Interpret?90:180;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
-            if(mode==AiMode.Interpret)panel.Children.Add(ResultText(Interpret(context.Text)));
-            else foreach(string suggestion in Suggestions(context.Text,mode))
+            if(mode==AiMode.Interpret)panel.Children.Add(ResultText(result.Text));
+            else foreach(string suggestion in result.Suggestions)
             {
                 var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.Height=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,2,6,2);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
                 button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;if(h!=null)h(suggestion,context,selectedMode);Hide();};panel.Children.Add(button);
@@ -101,18 +125,20 @@ namespace SnkMessage
             shell.Child=panel;
         }
 
-        public new void Hide(){operationVersion++;CloseMenu();highlight.Hide();base.Hide();}
+        private void ShowError(string message)
+        {
+            Width=280;Height=104;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
+            var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
+            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重试",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
+            panel.Children.Add(ResultText(message));shell.Child=panel;
+        }
+
+        public new void Hide(){operationVersion++;CancelOperation();CloseMenu();highlight.Hide();base.Hide();}
+        private void CancelOperation(){if(operationCancellation!=null){operationCancellation.Cancel();operationCancellation=null;}}
         private void CloseMenu(){if(modePopup!=null){modePopup.IsOpen=false;modePopup=null;}}
         private Point DeviceToLogical(Point point){var source=PresentationSource.FromVisual(this);return source!=null&&source.CompositionTarget!=null?source.CompositionTarget.TransformFromDevice.Transform(point):point;}
 
         private static Border ResultText(string text){return new Border{MinHeight=46,Padding=new Thickness(6),CornerRadius=new CornerRadius(6),Background=Brush("#CCFFFFFF"),Child=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17}};}
-        private static string Interpret(string text){if(text.Contains("问题")||text.Contains("考虑"))return "对方可能希望你重新评估，但没有明确指出具体问题。";if(text.Contains("谢谢")||text.Contains("收到"))return "看起来是在确认信息并表达礼貌回应。";return "这段话的具体含义可能需要结合前后文进一步确认。";}
-        private static IEnumerable<string> Suggestions(string text,AiMode selectedMode)
-        {
-            if(selectedMode==AiMode.Polish){yield return "我想先进一步了解具体情况，再给出明确回复。";yield return "方便再说明一下具体问题吗？我会据此调整。";yield return "我的理解是还需要进一步确认，您看是否准确？";}
-            else{yield return "您觉得具体是哪部分需要调整？";yield return "好的，我再梳理一下，稍后和您确认。";yield return "我们方便一起过一下具体问题吗？";}
-        }
-
         private static StackPanel IconLabel(UIElement icon,string label,double size){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=size,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static StackPanel TitleLabel(UIElement icon,string label){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=13,FontWeight=FontWeights.SemiBold,LineHeight=20,LineStackingStrategy=LineStackingStrategy.BlockLineHeight,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static Viewbox SparkleIcon(double size)

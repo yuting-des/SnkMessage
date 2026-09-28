@@ -8,6 +8,7 @@
   "main": "desktop/main.cjs",
   "scripts": {
     "start": "node server.mjs",
+    "ai:server": "node algorithm-server/server.mjs",
     "desktop": "electron .",
     "build:win": "node desktop/package.mjs",
     "test": "node --test --test-isolation=none tests/*.test.mjs"
