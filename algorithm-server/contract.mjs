@@ -6,11 +6,12 @@ export function validateRequest(body) {
   if (body.selectedText.length > 6000) throw new Error("SELECTION_TOO_LONG");
 }
 
-export function validateResult(mode, result) {
+export function validateResult(mode, result, selectedText = "") {
   if (!result || typeof result !== "object") throw new Error("INVALID_PROVIDER_RESULT");
   if (mode === "interpret") {
     const text = typeof result.text === "string" ? result.text.trim() : "";
     if (!text) throw new Error("EMPTY_INTERPRETATION");
+    if (normalize(text) === normalize(selectedText)) throw new Error("INTERPRETATION_REPEATS_INPUT");
     return { type: "interpretation", text: text.slice(0, 500), suggestions: [] };
   }
 
@@ -21,4 +22,8 @@ export function validateResult(mode, result) {
     : [];
   if (suggestions.length !== 3) throw new Error("INVALID_SUGGESTION_COUNT");
   return { type: "suggestions", text: "", suggestions };
+}
+
+function normalize(value) {
+  return String(value || "").replace(/\s+/gu, "").replace(/[，。！？、,.!?]/gu, "").toLowerCase();
 }

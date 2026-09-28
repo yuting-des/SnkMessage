@@ -39,12 +39,13 @@ const server = createServer(async (request, response) => {
   try {
     const body = await readJson(request);
     validateRequest(body);
-    const result = validateResult(body.mode, await provider.generate(body));
+    const result = validateResult(body.mode, await provider.generate(body), body.selectedText);
     return sendJson(response, 200, result);
   } catch (error) {
-    const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
+    const timeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    const code = timeout ? "PROVIDER_TIMEOUT" : error instanceof Error ? error.message : "UNKNOWN_ERROR";
     const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG"].includes(code);
-    return sendJson(response, clientError ? 400 : 500, { error: code });
+    return sendJson(response, clientError ? 400 : timeout ? 504 : 500, { error: code });
   }
 });
 

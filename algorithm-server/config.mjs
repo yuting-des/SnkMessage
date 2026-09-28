@@ -26,7 +26,7 @@ export function readConfig(environment = process.env) {
     openRouter: {
       apiKey: environment.OPENROUTER_API_KEY || "",
       baseUrl: environment.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1/chat/completions",
-      model: environment.OPENROUTER_MODEL || "deepseek/deepseek-v3.2",
+      model: environment.OPENROUTER_MODEL || "deepseek/deepseek-v4-pro-0813:nitro",
       zdr: readBoolean(environment.OPENROUTER_ZDR, true),
       dataCollection: environment.OPENROUTER_DATA_COLLECTION || "deny",
       requireParameters: readBoolean(environment.OPENROUTER_REQUIRE_PARAMETERS, true),

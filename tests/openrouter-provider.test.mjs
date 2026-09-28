@@ -9,7 +9,7 @@ function config(overrides = {}) {
   return {
     apiKey: "test-key",
     baseUrl: "https://openrouter.ai/api/v1/chat/completions",
-    model: "deepseek/deepseek-v3.2",
+    model: "deepseek/deepseek-v4-pro-0813:nitro",
     zdr: true,
     dataCollection: "deny",
     requireParameters: true,
@@ -51,7 +51,7 @@ test("OpenRouter adapter sends privacy routing and strict response schema", asyn
 
   assert.equal(captured.url, "https://openrouter.ai/api/v1/chat/completions");
   assert.equal(captured.options.headers.Authorization, "Bearer test-key");
-  assert.equal(captured.body.model, "deepseek/deepseek-v3.2");
+  assert.equal(captured.body.model, "deepseek/deepseek-v4-pro-0813:nitro");
   assert.equal(captured.body.reasoning.enabled, false);
   assert.equal(captured.body.provider.zdr, true);
   assert.equal(captured.body.provider.data_collection, "deny");
@@ -69,4 +69,11 @@ test("provider factory can switch to mock without changing callers", async () =>
 
 test("OpenRouter adapter refuses to start without a server-side key", () => {
   assert.throws(() => createOpenRouterProvider(config({ apiKey: "" })), /OPENROUTER_API_KEY_MISSING/u);
+});
+
+test("interpretation cannot merely repeat the selected text", () => {
+  assert.throws(
+    () => validateResult("interpret", { text: "这个方案再考虑一下。" }, "这个方案再考虑一下"),
+    /INTERPRETATION_REPEATS_INPUT/u,
+  );
 });

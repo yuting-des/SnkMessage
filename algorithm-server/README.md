@@ -27,7 +27,7 @@ Copy `.env.example` to `.env.local` and add your OpenRouter key locally:
 ```env
 SNKMESSAGE_AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-key
-OPENROUTER_MODEL=deepseek/deepseek-v3.2
+OPENROUTER_MODEL=deepseek/deepseek-v4-pro-0813:nitro
 OPENROUTER_ZDR=true
 OPENROUTER_DATA_COLLECTION=deny
 OPENROUTER_REQUIRE_PARAMETERS=true
