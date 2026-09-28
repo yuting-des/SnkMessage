@@ -77,9 +77,7 @@ namespace SnkMessage
             bool inserted=await InsertSuggestion(text,context,selectedMode);
             if(!inserted)
             {
-                ClipboardActivity.Suppress(350);
-                try{Clipboard.SetText(text);}catch{}
-                tray.ShowBalloonTip(3000,"建议已复制","未能自动定位输入框，请在微信输入框中粘贴。",Forms.ToolTipIcon.Info);
+                tray.ShowBalloonTip(3000,"建议已复制","未能自动粘贴，但剪贴板中已是该建议，可直接在微信输入框按 Ctrl+V。",Forms.ToolTipIcon.Info);
             }
         }
 
@@ -89,7 +87,9 @@ namespace SnkMessage
             {
                 if(context.SourceIsEditable && context.SourceElement!=null)
                 {
-                    context.SourceElement.SetFocus();await Task.Delay(60);return NativeMethods.SendUnicodeText(text);
+                    context.SourceElement.SetFocus();await Task.Delay(100);
+                    if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                    NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
                 }
                 var root=AutomationElement.FromHandle(context.TargetWindow);
                 var edits=root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Edit));
@@ -103,12 +103,14 @@ namespace SnkMessage
                     }catch{}
                 }
                 if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode);
+                best.SetFocus();await Task.Delay(100);
+                if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
                 object raw;
                 if(best.TryGetCurrentPattern(ValuePattern.Pattern,out raw)&&!((ValuePattern)raw).Current.IsReadOnly)
                 {
-                    best.SetFocus();((ValuePattern)raw).SetValue(text);return true;
+                    ((ValuePattern)raw).SetValue(text);return true;
                 }
-                best.SetFocus();await Task.Delay(60);return NativeMethods.SendUnicodeText(text);
+                NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
             }
             catch{return false;}
         }
@@ -119,14 +121,23 @@ namespace SnkMessage
             {
                 NativeMethods.RECT rect;if(!NativeMethods.GetWindowRect(context.TargetWindow,out rect))return false;
                 NativeMethods.SetForegroundWindow(context.TargetWindow);await Task.Delay(80);
-                bool selectionIsInComposer=context.Bounds.Top>rect.Top+(rect.Bottom-rect.Top)*0.62;
-                if(selectedMode!=AiMode.Polish||!selectionIsInComposer)
-                {
-                    int x=rect.Left+(rect.Right-rect.Left)*2/3;
-                    int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
-                    NativeMethods.ClickAt(x,y);await Task.Delay(100);
-                }
-                return NativeMethods.SendUnicodeText(text);
+                int x=rect.Left+(rect.Right-rect.Left)*2/3;
+                int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
+                NativeMethods.ClickAt(x,y);await Task.Delay(140);
+                if(selectedMode==AiMode.Polish){NativeMethods.SendShortcut(NativeMethods.VK_A);await Task.Delay(50);}
+                if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
+            }
+            catch{return false;}
+        }
+
+        private static bool SetSuggestionClipboard(string text)
+        {
+            ClipboardActivity.Suppress(700);
+            try
+            {
+                Forms.Clipboard.SetDataObject(text,true,10,40);
+                return Clipboard.ContainsText()&&Clipboard.GetText()==text;
             }
             catch{return false;}
         }

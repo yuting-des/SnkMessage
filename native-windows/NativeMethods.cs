@@ -13,6 +13,7 @@ namespace SnkMessage
         internal const int WS_EX_NOACTIVATE = 0x08000000;
         internal const uint GA_ROOT = 2;
         internal const byte VK_CONTROL = 0x11;
+        internal const byte VK_A = 0x41;
         internal const byte VK_C = 0x43;
         internal const byte VK_V = 0x56;
         internal const uint KEYEVENTF_KEYUP = 0x0002;

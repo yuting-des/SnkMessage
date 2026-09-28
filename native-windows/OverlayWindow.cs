@@ -60,10 +60,10 @@ namespace SnkMessage
 
         private void ShowBar()
         {
-            CloseMenu();highlight.Hide();shell.Padding=new Thickness(1);shell.Background=Brush("#EEFBFBFF");Width=mode==AiMode.Interpret?84:mode==AiMode.Reply?110:108;Height=30;
-            var grid=new Grid();grid.ColumnDefinitions.Add(new ColumnDefinition());grid.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(24)});
+            CloseMenu();highlight.Hide();shell.Padding=new Thickness(1);shell.Background=Brush("#EEFBFBFF");Width=mode==AiMode.Interpret?96:mode==AiMode.Reply?126:124;Height=30;
+            var grid=new Grid();grid.ColumnDefinitions.Add(new ColumnDefinition());grid.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(28)});
             var action=FlatButton(IconLabel(SparkleIcon(20),ModeName(mode),13),13);action.Foreground=Brush("#5A2DFC");action.Click+=async delegate{await RunAsync();};
-            var menuButton=FlatButton(DownIcon(),12);menuButton.Foreground=Brush("#5A2DFC");Grid.SetColumn(menuButton,1);menuButton.Click+=delegate{OpenModeMenu(menuButton);};grid.Children.Add(action);grid.Children.Add(menuButton);shell.Child=grid;
+            action.Padding=new Thickness(5,0,7,0);var menuButton=FlatButton(DownIcon(),12);menuButton.Padding=new Thickness(6,0,6,0);menuButton.Foreground=Brush("#5A2DFC");Grid.SetColumn(menuButton,1);menuButton.Click+=delegate{OpenModeMenu(menuButton);};grid.Children.Add(action);grid.Children.Add(menuButton);shell.Child=grid;
         }
 
         private void OpenModeMenu(Button owner)
