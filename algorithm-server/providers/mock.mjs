@@ -26,6 +26,10 @@ export async function generate(request) {
   };
 }
 
+export function createMockProvider() {
+  return { name: "mock", model: "local-rules", generate };
+}
+
 function interpret(text) {
   if (text.includes("问题") || text.includes("考虑")) {
     return "对方可能希望你重新评估，但没有明确指出具体问题。";

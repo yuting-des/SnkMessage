@@ -1,8 +1,12 @@
 import { createServer } from "node:http";
-import { generate } from "./providers/mock.mjs";
+import { readConfig } from "./config.mjs";
+import { validateRequest, validateResult } from "./contract.mjs";
+import { createProvider } from "./providers/index.mjs";
 
-const host = process.env.SNKMESSAGE_AI_HOST || "127.0.0.1";
-const port = Number(process.env.SNKMESSAGE_AI_PORT || 8787);
+const config = readConfig();
+const provider = createProvider(config);
+const host = config.host;
+const port = config.port;
 const maxBodyBytes = 32 * 1024;
 
 function sendJson(response, status, payload) {
@@ -24,19 +28,9 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-function validateRequest(body) {
-  if (!body || !["interpret", "reply", "polish"].includes(body.mode)) {
-    throw new Error("INVALID_MODE");
-  }
-  if (typeof body.selectedText !== "string" || !body.selectedText.trim()) {
-    throw new Error("EMPTY_SELECTION");
-  }
-  if (body.selectedText.length > 6000) throw new Error("SELECTION_TOO_LONG");
-}
-
 const server = createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") {
-    return sendJson(response, 200, { ok: true, provider: "mock" });
+    return sendJson(response, 200, { ok: true, provider: provider.name, model: provider.model });
   }
   if (request.method !== "POST" || request.url !== "/v1/generate") {
     return sendJson(response, 404, { error: "NOT_FOUND" });
@@ -45,7 +39,7 @@ const server = createServer(async (request, response) => {
   try {
     const body = await readJson(request);
     validateRequest(body);
-    const result = await generate(body);
+    const result = validateResult(body.mode, await provider.generate(body));
     return sendJson(response, 200, result);
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
@@ -55,5 +49,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`SnkMessage algorithm server: http://${host}:${port}/v1/generate`);
+  console.log(`SnkMessage algorithm server: http://${host}:${port}/v1/generate (${provider.name}/${provider.model})`);
 });

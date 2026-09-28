@@ -4,3 +4,4 @@ dist/
 native-windows/bin/
 native-windows/obj/
 .tools/
+algorithm-server/.env.local
