@@ -30,7 +30,7 @@ export function readConfig(environment = process.env) {
       zdr: readBoolean(environment.OPENROUTER_ZDR, true),
       dataCollection: environment.OPENROUTER_DATA_COLLECTION || "deny",
       requireParameters: readBoolean(environment.OPENROUTER_REQUIRE_PARAMETERS, true),
-      timeoutMs: readInteger(environment.OPENROUTER_TIMEOUT_MS, 12000),
+      timeoutMs: readInteger(environment.OPENROUTER_TIMEOUT_MS, 20000),
       appTitle: environment.OPENROUTER_APP_TITLE || "SnkMessage",
       httpReferer: environment.OPENROUTER_HTTP_REFERER || "",
     },

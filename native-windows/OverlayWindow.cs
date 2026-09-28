@@ -15,6 +15,7 @@ namespace SnkMessage
 {
     internal sealed class OverlayWindow : Window
     {
+        private const double ResultWindowWidth=300;
         private readonly Border shell;
         private readonly WindowHighlight highlight;
         private readonly IAiService aiService;
@@ -61,7 +62,7 @@ namespace SnkMessage
 
         private void ShowBar()
         {
-            CloseMenu();highlight.Hide();shell.Padding=new Thickness(1);shell.Background=Brush("#EEFBFBFF");Width=mode==AiMode.Interpret?96:mode==AiMode.Reply?126:124;Height=30;
+            CloseMenu();highlight.Hide();UseFixedSize(mode==AiMode.Interpret?96:mode==AiMode.Reply?126:124,30);shell.Padding=new Thickness(1);shell.Background=Brush("#EEFBFBFF");
             var grid=new Grid();grid.ColumnDefinitions.Add(new ColumnDefinition());grid.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(28)});
             var action=FlatButton(IconLabel(SparkleIcon(20),ModeName(mode),13),13);action.Foreground=Brush("#5A2DFC");action.Click+=async delegate{await RunAsync();};
             action.Padding=new Thickness(5,0,7,0);var menuButton=FlatButton(DownIcon(),12);menuButton.Padding=new Thickness(6,0,6,0);menuButton.Foreground=Brush("#5A2DFC");Grid.SetColumn(menuButton,1);menuButton.Click+=delegate{OpenModeMenu(menuButton);};grid.Children.Add(action);grid.Children.Add(menuButton);shell.Child=grid;
@@ -85,7 +86,7 @@ namespace SnkMessage
         {
             if(context==null)return;
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
-            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context.Text);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;Width=mode==AiMode.Interpret?174:166;Height=34;shell.Padding=new Thickness(6);
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context.Text);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?174:166,34);shell.Padding=new Thickness(6);
             shell.Child=IconLabel(LoadingIcon(),mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达",13);
             try
             {
@@ -113,30 +114,43 @@ namespace SnkMessage
 
         private void ShowResult(AiResult result)
         {
-            Width=mode==AiMode.Interpret?267:280;Height=mode==AiMode.Interpret?90:180;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
+            UseAutoHeight(ResultWindowWidth);shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
             if(mode==AiMode.Interpret)panel.Children.Add(ResultText(result.Text));
             else foreach(string suggestion in result.Suggestions)
             {
-                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.Height=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,2,6,2);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
+                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.MinHeight=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,4,6,4);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
                 button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;if(h!=null)h(suggestion,context,selectedMode);Hide();};panel.Children.Add(button);
             }
-            shell.Child=panel;
+            shell.Child=ResultScroller(panel);ConstrainToScreenAfterLayout();
         }
 
         private void ShowError(string message)
         {
-            Width=280;Height=104;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
+            UseAutoHeight(ResultWindowWidth);shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重试",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
-            panel.Children.Add(ResultText(message));shell.Child=panel;
+            panel.Children.Add(ResultText(message));shell.Child=ResultScroller(panel);ConstrainToScreenAfterLayout();
         }
 
         public new void Hide(){operationVersion++;CancelOperation();CloseMenu();highlight.Hide();base.Hide();}
         private void CancelOperation(){if(operationCancellation!=null){operationCancellation.Cancel();operationCancellation=null;}}
         private void CloseMenu(){if(modePopup!=null){modePopup.IsOpen=false;modePopup=null;}}
         private Point DeviceToLogical(Point point){var source=PresentationSource.FromVisual(this);return source!=null&&source.CompositionTarget!=null?source.CompositionTarget.TransformFromDevice.Transform(point):point;}
+
+        private void UseFixedSize(double width,double height){SizeToContent=SizeToContent.Manual;MaxHeight=Double.PositiveInfinity;Width=width;Height=height;}
+        private void UseAutoHeight(double width){Width=width;Height=Double.NaN;MaxHeight=Math.Max(180,SystemParameters.VirtualScreenHeight-16);SizeToContent=SizeToContent.Height;}
+        private static ScrollViewer ResultScroller(UIElement content){return new ScrollViewer{Content=content,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};}
+        private void ConstrainToScreenAfterLayout()
+        {
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                UpdateLayout();double margin=8;double actualWidth=ActualWidth>0?ActualWidth:Width;double actualHeight=ActualHeight>0?ActualHeight:Height;
+                Left=Math.Max(SystemParameters.VirtualScreenLeft+margin,Math.Min(Left,SystemParameters.VirtualScreenLeft+SystemParameters.VirtualScreenWidth-actualWidth-margin));
+                Top=Math.Max(SystemParameters.VirtualScreenTop+margin,Math.Min(Top,SystemParameters.VirtualScreenTop+SystemParameters.VirtualScreenHeight-actualHeight-margin));
+            }),System.Windows.Threading.DispatcherPriority.Loaded);
+        }
 
         private static Border ResultText(string text){return new Border{MinHeight=46,Padding=new Thickness(6),CornerRadius=new CornerRadius(6),Background=Brush("#CCFFFFFF"),Child=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17}};}
         private static StackPanel IconLabel(UIElement icon,string label,double size){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=size,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}

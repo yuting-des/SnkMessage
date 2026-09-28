@@ -75,7 +75,7 @@ namespace SnkMessage
             IAiService provider = String.IsNullOrWhiteSpace(configuredEndpoint)
                 ? new MockAiService()
                 : new RemoteAiService(ParseEndpoint(configuredEndpoint));
-            return new AiCoordinator(provider, TimeSpan.FromSeconds(15));
+            return new AiCoordinator(provider, TimeSpan.FromSeconds(25));
         }
 
         private static Uri ParseEndpoint(string value)

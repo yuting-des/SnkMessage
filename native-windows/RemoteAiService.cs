@@ -36,6 +36,8 @@ namespace SnkMessage
                 message.Headers.Add("X-Request-Id", request.RequestId);
 
                 using HttpResponseMessage response = await Client.SendAsync(message, cancellationToken);
+                if ((int)response.StatusCode == 504)
+                    throw new AiServiceException("模型响应超时，请重新尝试。");
                 if (!response.IsSuccessStatusCode)
                     throw new AiServiceException("算法服务暂时不可用（" + (int)response.StatusCode + "）。");
 
