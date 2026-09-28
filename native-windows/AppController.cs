@@ -76,7 +76,7 @@ namespace SnkMessage
         private async void OnSuggestionChosen(string text,SelectionContext context,AiMode selectedMode)
         {
             bool clipboardReady=TrySetSuggestionClipboardFast(text);
-            await Task.Delay(30);
+            await Task.Delay(16);
             bool inserted=await InsertSuggestion(text,context,selectedMode,clipboardReady);
             if(!inserted)
             {
@@ -90,8 +90,8 @@ namespace SnkMessage
             {
                 if(context.SourceIsEditable && context.SourceElement!=null)
                 {
-                    context.SourceElement.SetFocus();await Task.Delay(100);
-                    if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
+                    context.SourceElement.SetFocus();await Task.Delay(30);
+                    if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;
                     NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
                 }
                 return await PasteIntoWeChatComposer(text,context,selectedMode,clipboardReady);
@@ -104,12 +104,12 @@ namespace SnkMessage
             try
             {
                 NativeMethods.RECT rect;if(!NativeMethods.GetWindowRect(context.TargetWindow,out rect))return false;
-                NativeMethods.SetForegroundWindow(context.TargetWindow);await Task.Delay(80);
+                NativeMethods.SetForegroundWindow(context.TargetWindow);await Task.Delay(20);
                 int x=rect.Left+(rect.Right-rect.Left)*2/3;
                 int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
-                NativeMethods.ClickAt(x,y);await Task.Delay(140);
-                if(selectedMode==AiMode.Polish){NativeMethods.SendShortcut(NativeMethods.VK_A);await Task.Delay(50);}
-                if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
+                NativeMethods.ClickAt(x,y);await Task.Delay(40);
+                if(selectedMode==AiMode.Polish){NativeMethods.SendShortcut(NativeMethods.VK_A);await Task.Delay(20);}
+                if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;
                 NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
             }
             catch{return false;}
