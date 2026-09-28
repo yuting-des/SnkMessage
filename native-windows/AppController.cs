@@ -74,7 +74,7 @@ namespace SnkMessage
 
         private async void OnSuggestionChosen(string text,SelectionContext context,AiMode selectedMode)
         {
-            bool clipboardReady=SetSuggestionClipboard(text);
+            bool clipboardReady=TrySetSuggestionClipboardFast(text);
             bool inserted=await InsertSuggestion(text,context,selectedMode,clipboardReady);
             if(!inserted)
             {
@@ -89,7 +89,7 @@ namespace SnkMessage
                 if(context.SourceIsEditable && context.SourceElement!=null)
                 {
                     context.SourceElement.SetFocus();await Task.Delay(100);
-                    if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                    if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
                     NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
                 }
                 var root=AutomationElement.FromHandle(context.TargetWindow);
@@ -105,7 +105,7 @@ namespace SnkMessage
                 }
                 if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode,clipboardReady);
                 best.SetFocus();await Task.Delay(100);
-                if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
                 object raw;
                 if(best.TryGetCurrentPattern(ValuePattern.Pattern,out raw)&&!((ValuePattern)raw).Current.IsReadOnly)
                 {
@@ -126,13 +126,19 @@ namespace SnkMessage
                 int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
                 NativeMethods.ClickAt(x,y);await Task.Delay(140);
                 if(selectedMode==AiMode.Polish){NativeMethods.SendShortcut(NativeMethods.VK_A);await Task.Delay(50);}
-                if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
                 NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
             }
             catch{return false;}
         }
 
-        private static bool SetSuggestionClipboard(string text)
+        private static bool TrySetSuggestionClipboardFast(string text)
+        {
+            ClipboardActivity.Suppress(700);
+            try{Clipboard.SetText(text);return true;}catch{return false;}
+        }
+
+        private static bool SetSuggestionClipboardReliable(string text)
         {
             ClipboardActivity.Suppress(700);
             try
