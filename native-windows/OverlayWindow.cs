@@ -47,9 +47,9 @@ namespace SnkMessage
             if(Environment.GetEnvironmentVariable("SNKMESSAGE_DIAGNOSTICS")=="1")System.IO.File.WriteAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(),"SnkMessage.overlay"),DateTime.UtcNow.ToString("O"));
         }
 
-        public void HandleGlobalClick(int x,int y)
+        public bool DismissIfOutside(int x,int y)
         {
-            if(!IsVisible||IsInsideWindow(x,y)||IsInsidePopup(x,y))return;Hide();
+            if(!IsVisible||IsInsideWindow(x,y)||IsInsidePopup(x,y))return false;Hide();return true;
         }
         private bool IsInsideWindow(int x,int y){var hwnd=new WindowInteropHelper(this).Handle;NativeMethods.RECT r;return hwnd!=IntPtr.Zero&&NativeMethods.GetWindowRect(hwnd,out r)&&x>=r.Left&&x<=r.Right&&y>=r.Top&&y<=r.Bottom;}
         private bool IsInsidePopup(int x,int y)

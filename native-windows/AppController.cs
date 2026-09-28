@@ -55,7 +55,8 @@ namespace SnkMessage
         {
             app.Dispatcher.BeginInvoke(new Action(async delegate
             {
-                if(!dragged){overlay.HandleGlobalClick(x,y);return;}
+                overlay.DismissIfOutside(x,y);
+                if(!dragged)return;
                 if(capturing)return;capturing=true;
                 try
                 {
@@ -75,6 +76,7 @@ namespace SnkMessage
         private async void OnSuggestionChosen(string text,SelectionContext context,AiMode selectedMode)
         {
             bool clipboardReady=TrySetSuggestionClipboardFast(text);
+            await Task.Delay(30);
             bool inserted=await InsertSuggestion(text,context,selectedMode,clipboardReady);
             if(!inserted)
             {
@@ -92,26 +94,7 @@ namespace SnkMessage
                     if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
                     NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
                 }
-                var root=AutomationElement.FromHandle(context.TargetWindow);
-                var edits=root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Edit));
-                AutomationElement best=null;double bestY=Double.MinValue;
-                foreach(AutomationElement edit in edits)
-                {
-                    try
-                    {
-                        if(!(bool)edit.GetCurrentPropertyValue(AutomationElement.IsEnabledProperty))continue;
-                        var rect=edit.Current.BoundingRectangle;if(rect.Bottom>bestY){best=edit;bestY=rect.Bottom;}
-                    }catch{}
-                }
-                if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode,clipboardReady);
-                best.SetFocus();await Task.Delay(100);
-                if(!clipboardReady&&!SetSuggestionClipboardReliable(text))return false;await Task.Delay(60);
-                object raw;
-                if(best.TryGetCurrentPattern(ValuePattern.Pattern,out raw)&&!((ValuePattern)raw).Current.IsReadOnly)
-                {
-                    ((ValuePattern)raw).SetValue(text);return true;
-                }
-                NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
+                return await PasteIntoWeChatComposer(text,context,selectedMode,clipboardReady);
             }
             catch{return false;}
         }
