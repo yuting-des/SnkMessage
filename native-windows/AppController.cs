@@ -74,21 +74,22 @@ namespace SnkMessage
 
         private async void OnSuggestionChosen(string text,SelectionContext context,AiMode selectedMode)
         {
-            bool inserted=await InsertSuggestion(text,context,selectedMode);
+            bool clipboardReady=SetSuggestionClipboard(text);
+            bool inserted=await InsertSuggestion(text,context,selectedMode,clipboardReady);
             if(!inserted)
             {
                 tray.ShowBalloonTip(3000,"建议已复制","未能自动粘贴，但剪贴板中已是该建议，可直接在微信输入框按 Ctrl+V。",Forms.ToolTipIcon.Info);
             }
         }
 
-        private static async Task<bool> InsertSuggestion(string text,SelectionContext context,AiMode selectedMode)
+        private static async Task<bool> InsertSuggestion(string text,SelectionContext context,AiMode selectedMode,bool clipboardReady)
         {
             try
             {
                 if(context.SourceIsEditable && context.SourceElement!=null)
                 {
                     context.SourceElement.SetFocus();await Task.Delay(100);
-                    if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                    if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
                     NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
                 }
                 var root=AutomationElement.FromHandle(context.TargetWindow);
@@ -102,9 +103,9 @@ namespace SnkMessage
                         var rect=edit.Current.BoundingRectangle;if(rect.Bottom>bestY){best=edit;bestY=rect.Bottom;}
                     }catch{}
                 }
-                if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode);
+                if(best==null)return await PasteIntoWeChatComposer(text,context,selectedMode,clipboardReady);
                 best.SetFocus();await Task.Delay(100);
-                if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
                 object raw;
                 if(best.TryGetCurrentPattern(ValuePattern.Pattern,out raw)&&!((ValuePattern)raw).Current.IsReadOnly)
                 {
@@ -115,7 +116,7 @@ namespace SnkMessage
             catch{return false;}
         }
 
-        private static async Task<bool> PasteIntoWeChatComposer(string text,SelectionContext context,AiMode selectedMode)
+        private static async Task<bool> PasteIntoWeChatComposer(string text,SelectionContext context,AiMode selectedMode,bool clipboardReady)
         {
             try
             {
@@ -125,7 +126,7 @@ namespace SnkMessage
                 int y=rect.Bottom-Math.Max(70,(rect.Bottom-rect.Top)/9);
                 NativeMethods.ClickAt(x,y);await Task.Delay(140);
                 if(selectedMode==AiMode.Polish){NativeMethods.SendShortcut(NativeMethods.VK_A);await Task.Delay(50);}
-                if(!SetSuggestionClipboard(text))return false;await Task.Delay(60);
+                if(!clipboardReady&&!SetSuggestionClipboard(text))return false;await Task.Delay(60);
                 NativeMethods.SendShortcut(NativeMethods.VK_V);return true;
             }
             catch{return false;}

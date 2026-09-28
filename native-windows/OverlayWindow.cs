@@ -28,8 +28,8 @@ namespace SnkMessage
         public OverlayWindow()
         {
             Width=84;Height=30;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;Title="SnkMessage AI";
-            AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;
-            shell=new Border{CornerRadius=new CornerRadius(10),BorderThickness=new Thickness(1),BorderBrush=Brush("#C4C0FD"),Background=Brush("#EEFBFBFF"),Padding=new Thickness(4),Effect=new System.Windows.Media.Effects.DropShadowEffect{Color=Color.FromRgb(85,39,253),BlurRadius=14,Opacity=.30,ShadowDepth=2}};
+            AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;UseLayoutRounding=true;SnapsToDevicePixels=true;
+            shell=new Border{CornerRadius=new CornerRadius(10),BorderThickness=new Thickness(1),BorderBrush=Brush("#C4C0FD"),Background=Brush("#FFFBFBFF"),Padding=new Thickness(4),UseLayoutRounding=true,SnapsToDevicePixels=true};
             Content=shell;highlight=new WindowHighlight();
             PreviewKeyDown+=delegate(object sender,KeyEventArgs e){if(e.Key==Key.Escape)Hide();};
         }
@@ -69,7 +69,7 @@ namespace SnkMessage
         private void OpenModeMenu(Button owner)
         {
             CloseMenu();var panel=new StackPanel();AddMode(panel,"解读",AiMode.Interpret);AddMode(panel,"回复建议",AiMode.Reply);AddMode(panel,"表达优化",AiMode.Polish);
-            var surface=new Border{Width=144,Padding=new Thickness(4),CornerRadius=new CornerRadius(8),Background=Brush("#FFF8F6FF"),BorderBrush=Brush("#C4C0FD"),BorderThickness=new Thickness(1),Effect=new System.Windows.Media.Effects.DropShadowEffect{Color=Color.FromRgb(85,39,253),BlurRadius=14,Opacity=.25,ShadowDepth=2},Child=panel};
+            var surface=new Border{Width=144,Padding=new Thickness(4),CornerRadius=new CornerRadius(8),Background=Brush("#FFF8F6FF"),BorderBrush=Brush("#C4C0FD"),BorderThickness=new Thickness(1),UseLayoutRounding=true,SnapsToDevicePixels=true,Child=panel};
             bool below=Top<130;modePopup=new Popup{PlacementTarget=owner,Placement=below?PlacementMode.Bottom:PlacementMode.Top,VerticalOffset=below?6:-6,AllowsTransparency=true,StaysOpen=true,Child=surface};modePopup.IsOpen=true;
         }
 
@@ -82,21 +82,21 @@ namespace SnkMessage
 
         private async Task RunAsync()
         {
-            int version=++operationVersion;CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Width=mode==AiMode.Interpret?174:166;Height=34;shell.Padding=new Thickness(6);
+            int version=++operationVersion;CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;Width=mode==AiMode.Interpret?174:166;Height=34;shell.Padding=new Thickness(6);
             shell.Child=IconLabel(LoadingIcon(),mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达",13);
             await Task.Delay(650);if(version!=operationVersion||!IsVisible)return;highlight.Hide();ShowResult();
         }
 
         private void ShowResult()
         {
-            Width=mode==AiMode.Interpret?267:280;Height=mode==AiMode.Interpret?84:170;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
-            var panel=new StackPanel();var header=new Grid{Height=20,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
-            header.Children.Add(IconLabel(SparkleIcon(20),ModeName(mode),13));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
+            Width=mode==AiMode.Interpret?267:280;Height=mode==AiMode.Interpret?90:180;shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
+            var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
+            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
             if(mode==AiMode.Interpret)panel.Children.Add(ResultText(Interpret(context.Text)));
             else foreach(string suggestion in Suggestions(context.Text,mode))
             {
                 var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.Height=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,2,6,2);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
-                button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;Hide();if(h!=null)h(suggestion,context,selectedMode);};panel.Children.Add(button);
+                button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;if(h!=null)h(suggestion,context,selectedMode);Hide();};panel.Children.Add(button);
             }
             shell.Child=panel;
         }
@@ -114,6 +114,7 @@ namespace SnkMessage
         }
 
         private static StackPanel IconLabel(UIElement icon,string label,double size){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=size,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
+        private static StackPanel TitleLabel(UIElement icon,string label){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=13,FontWeight=FontWeights.SemiBold,LineHeight=20,LineStackingStrategy=LineStackingStrategy.BlockLineHeight,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static Viewbox SparkleIcon(double size)
         {
             var canvas=new Canvas{Width=20,Height=20};var fill=Brush("#5A2DFC");canvas.Children.Add(new Path{Fill=fill,Data=Geometry.Parse("M5.86486,10.1982 L7.15314,6.33333 L7.94371,6.33333 L9.232,10.1982 L13.0969,11.4865 L13.0969,12.277 L9.232,13.5653 L7.94371,17.4302 L7.15314,17.4302 L5.86486,13.5653 L2,12.277 L2,11.4865 Z")});canvas.Children.Add(new Path{Fill=fill,Data=Geometry.Parse("M13.1565,4.98986 L13.8198,3 L14.6104,3 L15.2737,4.98986 L17.2635,5.65314 L17.2635,6.44371 L15.2737,7.107 L14.6104,9.09686 L13.8198,9.09686 L13.1565,7.107 L11.1667,6.44371 L11.1667,5.65314 Z")});return new Viewbox{Width=size,Height=size,Child=canvas};
@@ -137,7 +138,7 @@ namespace SnkMessage
 
     internal sealed class WindowHighlight:Window
     {
-        public WindowHighlight(){WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;IsHitTestVisible=false;Content=new Border{BorderBrush=new SolidColorBrush(Color.FromRgb(196,192,253)),BorderThickness=new Thickness(2),CornerRadius=new CornerRadius(9),Effect=new System.Windows.Media.Effects.DropShadowEffect{Color=Color.FromRgb(90,45,252),BlurRadius=18,Opacity=.45,ShadowDepth=0}};}
+        public WindowHighlight(){WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;IsHitTestVisible=false;UseLayoutRounding=true;SnapsToDevicePixels=true;Content=new Border{Background=new SolidColorBrush(Color.FromArgb(28,90,45,252)),BorderBrush=new SolidColorBrush(Color.FromRgb(164,151,255)),BorderThickness=new Thickness(5),CornerRadius=new CornerRadius(9)};}
         protected override void OnSourceInitialized(EventArgs e){base.OnSourceInitialized(e);var hwnd=new WindowInteropHelper(this).Handle;int style=NativeMethods.GetWindowLong(hwnd,NativeMethods.GWL_EXSTYLE);NativeMethods.SetWindowLong(hwnd,NativeMethods.GWL_EXSTYLE,style|NativeMethods.WS_EX_TOOLWINDOW|NativeMethods.WS_EX_NOACTIVATE);}
         public void ShowAround(IntPtr hwnd,Func<Point,Point> convert){if(hwnd==IntPtr.Zero)return;NativeMethods.RECT rect;if(!NativeMethods.GetWindowRect(hwnd,out rect))return;Point a=convert(new Point(rect.Left,rect.Top)),b=convert(new Point(rect.Right,rect.Bottom));Left=a.X;Top=a.Y;Width=Math.Max(1,b.X-a.X);Height=Math.Max(1,b.Y-a.Y);Show();}
     }
