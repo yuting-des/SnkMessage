@@ -12,6 +12,8 @@ export function validateRequest(body) {
         throw new Error("INVALID_CONTEXT");
     }
   }
+  if (body.ocrImageBase64 !== undefined && (typeof body.ocrImageBase64 !== "string" || body.ocrImageBase64.length > 7_500_000))
+    throw new Error("INVALID_OCR_IMAGE");
 }
 
 export function validateResult(mode, result, selectedText = "") {

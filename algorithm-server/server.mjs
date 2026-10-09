@@ -2,12 +2,13 @@ import { createServer } from "node:http";
 import { readConfig } from "./config.mjs";
 import { validateRequest, validateResult } from "./contract.mjs";
 import { createProvider } from "./providers/index.mjs";
+import { enrichContextWithOcr } from "./ocr.mjs";
 
 const config = readConfig();
 const provider = createProvider(config);
 const host = config.host;
 const port = config.port;
-const maxBodyBytes = 32 * 1024;
+const maxBodyBytes = 8 * 1024 * 1024;
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -40,13 +41,16 @@ const server = createServer(async (request, response) => {
   try {
     const body = await readJson(request);
     validateRequest(body);
-    const result = validateResult(body.mode, await provider.generate(body), body.selectedText);
+    const enriched = await enrichContextWithOcr(body);
+    const result = validateResult(body.mode, await provider.generate(enriched.request), body.selectedText);
+    result.context = enriched.request.context || [];
+    result.contextSource = enriched.source;
     console.log(`[ai] request=${body.requestId || "unknown"} mode=${body.mode} status=ok elapsedMs=${Date.now()-startedAt}`);
     return sendJson(response, 200, result);
   } catch (error) {
     const timeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     const code = timeout ? "PROVIDER_TIMEOUT" : error instanceof Error ? error.message : "UNKNOWN_ERROR";
-    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG", "INVALID_CONTEXT", "CONTEXT_TOO_LONG"].includes(code);
+    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG", "INVALID_CONTEXT", "CONTEXT_TOO_LONG", "INVALID_OCR_IMAGE"].includes(code);
     console.warn(`[ai] status=${code} elapsedMs=${Date.now()-startedAt}`);
     return sendJson(response, clientError ? 400 : timeout ? 504 : 500, { error: code });
   }

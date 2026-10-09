@@ -96,6 +96,11 @@ namespace SnkMessage
             {
                 AiResult result=await aiService.GenerateAsync(request,cancellation.Token);
                 if(version!=operationVersion||!IsVisible||cancellation.IsCancellationRequested)return;
+                if(result.Context!=null&&result.Context.Count>0)
+                {
+                    context.Context=result.Context;
+                    context.ContextDiagnostic=result.ContextSource=="ocr"?"已通过本地 OCR 读取":"已从微信消息列表读取";
+                }
                 highlight.Hide();ShowResult(result);
             }
             catch(OperationCanceledException){ }

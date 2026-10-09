@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -30,6 +31,9 @@ namespace SnkMessage
         public bool SourceIsEditable;
         public IReadOnlyList<ConversationTurn> Context = Array.Empty<ConversationTurn>();
         public string ContextDiagnostic;
+        public string OcrImageBase64;
+        public int OcrImageWidth;
+        public int OcrImageHeight;
     }
 
     internal sealed class GlobalSelectionWatcher : IDisposable
@@ -104,7 +108,8 @@ namespace SnkMessage
             string selectedText=text.Trim();
             string diagnostic;
             IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,new Rect(x,y,1,1),out diagnostic);
-            return new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=nearby, ContextDiagnostic=diagnostic };
+            var result=new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=nearby, ContextDiagnostic=diagnostic };
+            AttachOcrFallback(result);return result;
         }
 
         private static SelectionContext TryAutomationSelection(AutomationElement start, IntPtr hwnd)
@@ -145,7 +150,8 @@ namespace SnkMessage
                     string selectedText=text.Trim();
                     string diagnostic;
                     IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,bounds,out diagnostic);
-                    return new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=nearby, ContextDiagnostic=diagnostic };
+                    var result=new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=nearby, ContextDiagnostic=diagnostic };
+                    AttachOcrFallback(result);return result;
                 }
                 catch { }
             }
@@ -282,6 +288,33 @@ namespace SnkMessage
         private static string Normalize(string value)
         {
             return new string((value??String.Empty).Where(character=>!Char.IsWhiteSpace(character)&&!Char.IsPunctuation(character)).ToArray()).ToLowerInvariant();
+        }
+
+        private static void AttachOcrFallback(SelectionContext context)
+        {
+            if(!ContextCapture.Enabled||context==null||context.Context.Count>0||context.TargetWindow==IntPtr.Zero)return;
+            try
+            {
+                NativeMethods.RECT window;
+                if(!NativeMethods.GetWindowRect(context.TargetWindow,out window))return;
+                int windowWidth=window.Right-window.Left,windowHeight=window.Bottom-window.Top;
+                if(windowWidth<320||windowHeight<240)return;
+                int left=window.Left+Math.Max(180,(int)(windowWidth*.22));
+                int top=window.Top+50;
+                double selectedY=context.Bounds.IsEmpty?window.Bottom-180:context.Bounds.Top;
+                int bottom=Math.Min(window.Bottom-110,(int)selectedY+120);
+                if(bottom-top<180)bottom=Math.Min(window.Bottom-80,top+Math.Min(700,windowHeight-130));
+                int width=Math.Min(1600,window.Right-left-12),height=Math.Min(1050,bottom-top);
+                if(width<200||height<160)return;
+                using var bitmap=new System.Drawing.Bitmap(width,height,System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                using(var graphics=System.Drawing.Graphics.FromImage(bitmap))graphics.CopyFromScreen(left,top,0,0,new System.Drawing.Size(width,height),System.Drawing.CopyPixelOperation.SourceCopy);
+                using var stream=new MemoryStream();
+                bitmap.Save(stream,System.Drawing.Imaging.ImageFormat.Png);
+                context.OcrImageBase64=Convert.ToBase64String(stream.ToArray());
+                context.OcrImageWidth=width;context.OcrImageHeight=height;
+                context.ContextDiagnostic="新版微信未提供消息结构，将使用本地 OCR";
+            }
+            catch { }
         }
 
         private static bool IsFromTargetProcess(AutomationElement element,IntPtr hwnd)

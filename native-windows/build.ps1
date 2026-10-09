@@ -36,6 +36,9 @@ New-Item -ItemType Directory -Path $serviceDestination -Force | Out-Null
 Copy-Item -Path (Join-Path $serviceSource '*.mjs') -Destination $serviceDestination -Force
 Copy-Item -Path (Join-Path $serviceSource '.env.example') -Destination $serviceDestination -Force
 Copy-Item -Path (Join-Path $serviceSource 'providers') -Destination $serviceDestination -Recurse -Force
+Copy-Item -Path (Join-Path $serviceSource 'node_modules') -Destination $serviceDestination -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $serviceSource 'package.json') -Destination $serviceDestination -Force
+Copy-Item -LiteralPath (Join-Path $serviceSource 'package-lock.json') -Destination $serviceDestination -Force
 $bundledNode = Join-Path $repository '.tools\node\node.exe'
 if (Test-Path -LiteralPath $bundledNode) {
     $runtimeDestination = Join-Path (Split-Path $dist -Parent) 'runtime'

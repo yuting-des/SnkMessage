@@ -18,6 +18,9 @@ namespace SnkMessage
         public string SelectedText { get; set; }
         public string Language { get; set; }
         public IReadOnlyList<ConversationTurn> Context { get; set; }
+        public string OcrImageBase64 { get; set; }
+        public int OcrImageWidth { get; set; }
+        public int OcrImageHeight { get; set; }
 
         public static AiRequest FromSelection(AiMode mode, SelectionContext selection)
         {
@@ -27,7 +30,10 @@ namespace SnkMessage
                 Mode = mode,
                 SelectedText = selection.Text,
                 Language = "zh-CN",
-                Context = selection.Context ?? Array.Empty<ConversationTurn>()
+                Context = selection.Context ?? Array.Empty<ConversationTurn>(),
+                OcrImageBase64 = selection.OcrImageBase64,
+                OcrImageWidth = selection.OcrImageWidth,
+                OcrImageHeight = selection.OcrImageHeight
             };
         }
     }
@@ -37,6 +43,8 @@ namespace SnkMessage
         public string Type { get; set; }
         public string Text { get; set; }
         public IReadOnlyList<string> Suggestions { get; set; }
+        public IReadOnlyList<ConversationTurn> Context { get; set; }
+        public string ContextSource { get; set; }
 
         public static AiResult Interpretation(string text)
         {

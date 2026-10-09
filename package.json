@@ -11,7 +11,7 @@
     "ai:server": "node algorithm-server/server.mjs",
     "desktop": "electron .",
     "build:win": "node desktop/package.mjs",
-    "test": "node --test --test-isolation=none tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs"
   },
   "engines": {"node": ">=20"},
   "devDependencies": {

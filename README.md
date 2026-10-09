@@ -6,7 +6,7 @@
 
 `native-windows` 使用 .NET 8、Windows UI Automation 和系统级选区监听。它只在微信窗口中触发，支持解读、回复建议和表达优化，点击建议后写入微信输入框，但不会替用户发送。
 
-客户端会自动启动发布目录中的 `algorithm-server`，并通过 `/health` 检查服务，无需用户手动运行 Node。托盘菜单可以把 OpenRouter API Key 保存到 Windows 凭据管理器，也可以开关“使用附近聊天上下文”。开启后，程序最多读取选中文字附近 5 条 UI Automation 可见文本；读取失败时自动退回仅处理选中文字。
+客户端会自动启动发布目录中的 `algorithm-server`，并通过 `/health` 检查服务，无需用户手动运行 Node。托盘菜单可以把 OpenRouter API Key 保存到 Windows 凭据管理器，也可以开关“使用附近聊天上下文”。开启后，程序最多读取选中文字附近 5 条 UI Automation 可见文本；新版微信不提供可读消息结构时，自动在本机通过 OCR 读取当前可见聊天区域。截图只在内存中处理、不上传，模型只接收 OCR 得到并可在结果卡片中核对的文字。
 
 首次构建运行 `native-windows/setup-node.ps1`，然后运行 `native-windows/build.ps1`。完整发布目录位于 `dist`，需要连同 `SnkMessage-native-v0.3.exe`、`algorithm-server` 和 `runtime` 一起分发。
 
