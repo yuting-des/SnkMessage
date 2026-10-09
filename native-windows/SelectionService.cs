@@ -299,8 +299,11 @@ namespace SnkMessage
                 if(!NativeMethods.GetWindowRect(context.TargetWindow,out window))return;
                 int windowWidth=window.Right-window.Left,windowHeight=window.Bottom-window.Top;
                 if(windowWidth<320||windowHeight<240)return;
-                int left=window.Left+Math.Max(180,(int)(windowWidth*.22));
-                int top=window.Top+50;
+                uint dpi=96;try{uint actual=NativeMethods.GetDpiForWindow(context.TargetWindow);if(actual>0)dpi=actual;}catch{}
+                double scale=dpi/96.0;
+                int navigationWidth=Math.Min(windowWidth-260,(int)Math.Round(315*scale));
+                int left=window.Left+Math.Max(260,navigationWidth);
+                int top=window.Top+(int)Math.Round(92*scale);
                 double selectedY=context.Bounds.IsEmpty?window.Bottom-180:context.Bounds.Top;
                 int bottom=Math.Min(window.Bottom-110,(int)selectedY+120);
                 if(bottom-top<180)bottom=Math.Min(window.Bottom-80,top+Math.Min(700,windowHeight-130));

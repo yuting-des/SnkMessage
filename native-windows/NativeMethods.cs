@@ -78,6 +78,9 @@ namespace SnkMessage
         internal static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll")]
+        internal static extern uint GetDpiForWindow(IntPtr hwnd);
+
+        [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
 

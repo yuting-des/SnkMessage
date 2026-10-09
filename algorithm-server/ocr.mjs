@@ -41,12 +41,21 @@ export function extractTurns(blocks, imageWidth, selectedText = "") {
       const text = clean(paragraph?.text);
       const box = paragraph?.bbox;
       if (!text || text.length > 500 || normalize(text) === selected || !box) continue;
+      if (Number.isFinite(paragraph?.confidence) && paragraph.confidence < 55) continue;
       if (isUiNoise(text)) continue;
-      entries.push({ text, top: box.y0 || 0, center: ((box.x0 || 0) + (box.x1 || 0)) / 2 });
+      entries.push({
+        text,
+        top: box.y0 || 0,
+        bottom: box.y1 || 0,
+        left: box.x0 || 0,
+        right: box.x1 || 0,
+        center: ((box.x0 || 0) + (box.x1 || 0)) / 2,
+      });
     }
   }
   entries.sort((a, b) => a.top - b.top);
-  const unique = entries.filter((entry, index, all) => all.findIndex((other) => normalize(other.text) === normalize(entry.text)) === index);
+  const withoutNames = entries.filter((entry, index) => !isLikelySenderName(entry, entries[index + 1], imageWidth));
+  const unique = withoutNames.filter((entry, index, all) => all.findIndex((other) => normalize(other.text) === normalize(entry.text)) === index);
   return unique.slice(-5).map((entry) => ({
     role: imageWidth > 0 && entry.center > imageWidth * 0.57 ? "user" : "other",
     text: entry.text,
@@ -66,6 +75,20 @@ function normalize(value) {
 }
 
 function isUiNoise(value) {
-  return /^(微信|通讯录|发现|我|朋友圈|视频号|搜一搜|看一看|小程序|文件传输助手|发送|表情|截图)$/u.test(value)
-    || /^\d{1,2}:\d{2}$/u.test(value);
+  const compact = value.replace(/[\s【】\[\]()（）]/gu, "");
+  return /^(微信|通讯录|发现|我|朋友圈|视频号|搜一搜|看一看|小程序|文件传输助手|发送|表情|截图|图片|照片|视频|动画表情|文件|语音)$/u.test(compact)
+    || /^(星期[一二三四五六日天]|昨天|今天|刚刚|上午|下午|晚上)?\s*\d{1,2}:\d{2}$/u.test(value);
+}
+
+function isLikelySenderName(entry, next, imageWidth) {
+  if (!next || !imageWidth || entry.text.length > 24 || /[，。！？!?：:；;]/u.test(entry.text)) return false;
+  const gap = next.top - entry.bottom;
+  if (gap < -2 || gap > 34) return false;
+  const entryRight = entry.center > imageWidth * 0.57;
+  const nextRight = next.center > imageWidth * 0.57;
+  if (entryRight !== nextRight) return false;
+  const aligned = entryRight ? Math.abs(entry.right - next.right) < 42 : Math.abs(entry.left - next.left) < 42;
+  const entryHeight = Math.max(1, entry.bottom - entry.top);
+  const nextHeight = Math.max(1, next.bottom - next.top);
+  return aligned && entryHeight <= nextHeight * 1.15;
 }
