@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -120,6 +121,7 @@ namespace SnkMessage
             UseAutoHeight(ResultWindowWidth);shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
+            panel.Children.Add(ContextStatus());
             if(mode==AiMode.Interpret)panel.Children.Add(ResultText(result.Text));
             else foreach(string suggestion in result.Suggestions)
             {
@@ -156,6 +158,23 @@ namespace SnkMessage
         }
 
         private static Border ResultText(string text){return new Border{MinHeight=46,Padding=new Thickness(6),CornerRadius=new CornerRadius(6),Background=Brush("#CCFFFFFF"),Child=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17}};}
+        private UIElement ContextStatus()
+        {
+            int count=context==null||context.Context==null?0:context.Context.Count;
+            var row=new Grid{Margin=new Thickness(2,0,2,6)};row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
+            row.Children.Add(new TextBlock{Text=count>0?"已参考 "+count+" 条附近消息":"仅分析选中文字（未读取到上下文）",FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),VerticalAlignment=VerticalAlignment.Center});
+            if(count>0)
+            {
+                var view=FlatButton(new TextBlock{Text="查看",FontSize=10},10);view.Foreground=Brush("#5A2DFC");view.Padding=new Thickness(5,1,5,1);Grid.SetColumn(view,1);
+                view.Click+=delegate
+                {
+                    string details=String.Join(Environment.NewLine+Environment.NewLine,context.Context.Select((turn,index)=>(index+1)+". "+(turn.Role=="user"?"我":"对方")+"："+turn.Text));
+                    MessageBox.Show(details,"本次发送给模型的附近上下文",MessageBoxButton.OK,MessageBoxImage.Information);
+                };
+                row.Children.Add(view);
+            }
+            return row;
+        }
         private static StackPanel IconLabel(UIElement icon,string label,double size){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=size,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static StackPanel TitleLabel(UIElement icon,string label){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=13,FontWeight=FontWeights.SemiBold,LineHeight=20,LineStackingStrategy=LineStackingStrategy.BlockLineHeight,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static Viewbox SparkleIcon(double size)
