@@ -26,14 +26,18 @@ export async function enrichContextWithOcr(request) {
 
   const worker = await getWorker();
   const { data } = await worker.recognize(Buffer.from(request.ocrImageBase64, "base64"), {}, { blocks: true });
-  const turns = extractTurns(data?.blocks, Number(request.ocrImageWidth), request.selectedText);
+  const extracted = extractConversation(data?.blocks, Number(request.ocrImageWidth), request.selectedText, Number(request.ocrContentTop));
   return {
-    request: { ...request, context: turns, ocrImageBase64: undefined },
-    source: turns.length ? "ocr" : "none",
+    request: { ...request, context: extracted.turns, conversationLabel: extracted.conversationLabel, ocrImageBase64: undefined },
+    source: extracted.turns.length ? "ocr" : "none",
   };
 }
 
 export function extractTurns(blocks, imageWidth, selectedText = "") {
+  return extractConversation(blocks, imageWidth, selectedText, 0).turns;
+}
+
+export function extractConversation(blocks, imageWidth, selectedText = "", contentTop = 0) {
   const selected = normalize(selectedText);
   const entries = [];
   for (const block of Array.isArray(blocks) ? blocks : []) {
@@ -50,16 +54,49 @@ export function extractTurns(blocks, imageWidth, selectedText = "") {
         left: box.x0 || 0,
         right: box.x1 || 0,
         center: ((box.x0 || 0) + (box.x1 || 0)) / 2,
+        confidence: Number.isFinite(paragraph?.confidence) ? paragraph.confidence : 100,
       });
     }
   }
   entries.sort((a, b) => a.top - b.top);
-  const withoutNames = entries.filter((entry, index) => !isLikelySenderName(entry, entries[index + 1], imageWidth));
+  const conversationLabel = findConversationLabel(entries.filter((entry) => contentTop > 0 && entry.bottom <= contentTop));
+  const messages = entries.filter((entry) => !contentTop || entry.top >= contentTop);
+  const senderNames = new Map();
+  const nameEntries = new Set();
+  messages.forEach((entry, index) => {
+    if (isLikelySenderName(entry, messages[index + 1], imageWidth)) {
+      nameEntries.add(entry);
+      senderNames.set(messages[index + 1], entry.text);
+    }
+  });
+  const withoutNames = messages.filter((entry) => !nameEntries.has(entry));
   const unique = withoutNames.filter((entry, index, all) => all.findIndex((other) => normalize(other.text) === normalize(entry.text)) === index);
-  return unique.slice(-5).map((entry) => ({
-    role: imageWidth > 0 && entry.center > imageWidth * 0.57 ? "user" : "other",
-    text: entry.text,
-  }));
+  const chosen = chooseBalancedTail(unique, imageWidth, 5);
+  const turns = chosen.map((entry) => {
+    const role = roleFor(entry, imageWidth);
+    const turn = { role, text: entry.text };
+    if (role === "other" && senderNames.has(entry)) turn.speaker = senderNames.get(entry);
+    return turn;
+  });
+  return { conversationLabel, turns };
+}
+
+function chooseBalancedTail(entries, imageWidth, limit) {
+  const chosen = entries.slice(-limit);
+  for (const role of ["other", "user"]) {
+    if (chosen.some((entry) => roleFor(entry, imageWidth) === role)) continue;
+    const candidate = [...entries].reverse().find((entry) => roleFor(entry, imageWidth) === role);
+    if (candidate && !chosen.includes(candidate)) {
+      if (chosen.length >= limit) chosen.shift();
+      chosen.push(candidate);
+      chosen.sort((a, b) => a.top - b.top);
+    }
+  }
+  return chosen;
+}
+
+function roleFor(entry, imageWidth) {
+  return imageWidth > 0 && entry.center > imageWidth * 0.57 ? "user" : "other";
 }
 
 function clean(value) {
@@ -91,4 +128,10 @@ function isLikelySenderName(entry, next, imageWidth) {
   const entryHeight = Math.max(1, entry.bottom - entry.top);
   const nextHeight = Math.max(1, next.bottom - next.top);
   return aligned && entryHeight <= nextHeight * 1.15;
+}
+
+function findConversationLabel(entries) {
+  return entries
+    .filter((entry) => entry.text.length <= 60 && !isUiNoise(entry.text))
+    .sort((a, b) => ((b.bottom - b.top) * 2 + b.confidence) - ((a.bottom - a.top) * 2 + a.confidence))[0]?.text || "";
 }

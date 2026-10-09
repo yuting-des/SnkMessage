@@ -45,12 +45,13 @@ const server = createServer(async (request, response) => {
     const result = validateResult(body.mode, await provider.generate(enriched.request), body.selectedText);
     result.context = enriched.request.context || [];
     result.contextSource = enriched.source;
+    result.conversationLabel = enriched.request.conversationLabel || "";
     console.log(`[ai] request=${body.requestId || "unknown"} mode=${body.mode} status=ok elapsedMs=${Date.now()-startedAt}`);
     return sendJson(response, 200, result);
   } catch (error) {
     const timeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     const code = timeout ? "PROVIDER_TIMEOUT" : error instanceof Error ? error.message : "UNKNOWN_ERROR";
-    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG", "INVALID_CONTEXT", "CONTEXT_TOO_LONG", "INVALID_OCR_IMAGE"].includes(code);
+    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG", "INVALID_CONTEXT", "CONTEXT_TOO_LONG", "INVALID_OCR_IMAGE", "INVALID_CONVERSATION_LABEL"].includes(code);
     console.warn(`[ai] status=${code} elapsedMs=${Date.now()-startedAt}`);
     return sendJson(response, clientError ? 400 : timeout ? 504 : 500, { error: code });
   }

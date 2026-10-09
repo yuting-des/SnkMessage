@@ -31,9 +31,12 @@ namespace SnkMessage
         public bool SourceIsEditable;
         public IReadOnlyList<ConversationTurn> Context = Array.Empty<ConversationTurn>();
         public string ContextDiagnostic;
+        public string ConversationLabel;
         public string OcrImageBase64;
         public int OcrImageWidth;
         public int OcrImageHeight;
+        public int OcrContentTop;
+        public Rect OcrBounds;
     }
 
     internal sealed class GlobalSelectionWatcher : IDisposable
@@ -303,7 +306,8 @@ namespace SnkMessage
                 double scale=dpi/96.0;
                 int navigationWidth=Math.Min(windowWidth-260,(int)Math.Round(315*scale));
                 int left=window.Left+Math.Max(260,navigationWidth);
-                int top=window.Top+(int)Math.Round(92*scale);
+                int top=window.Top+(int)Math.Round(30*scale);
+                int contentTop=(int)Math.Round(70*scale);
                 double selectedY=context.Bounds.IsEmpty?window.Bottom-180:context.Bounds.Top;
                 int bottom=Math.Min(window.Bottom-110,(int)selectedY+120);
                 if(bottom-top<180)bottom=Math.Min(window.Bottom-80,top+Math.Min(700,windowHeight-130));
@@ -315,6 +319,7 @@ namespace SnkMessage
                 bitmap.Save(stream,System.Drawing.Imaging.ImageFormat.Png);
                 context.OcrImageBase64=Convert.ToBase64String(stream.ToArray());
                 context.OcrImageWidth=width;context.OcrImageHeight=height;
+                context.OcrContentTop=contentTop;context.OcrBounds=new Rect(left,top,width,height);
                 context.ContextDiagnostic="新版微信未提供消息结构，将使用本地 OCR";
             }
             catch { }

@@ -8,6 +8,7 @@ namespace SnkMessage
     internal sealed class ConversationTurn
     {
         public string Role { get; set; }
+        public string Speaker { get; set; }
         public string Text { get; set; }
     }
 
@@ -18,9 +19,11 @@ namespace SnkMessage
         public string SelectedText { get; set; }
         public string Language { get; set; }
         public IReadOnlyList<ConversationTurn> Context { get; set; }
+        public string ConversationLabel { get; set; }
         public string OcrImageBase64 { get; set; }
         public int OcrImageWidth { get; set; }
         public int OcrImageHeight { get; set; }
+        public int OcrContentTop { get; set; }
 
         public static AiRequest FromSelection(AiMode mode, SelectionContext selection)
         {
@@ -31,9 +34,11 @@ namespace SnkMessage
                 SelectedText = selection.Text,
                 Language = "zh-CN",
                 Context = selection.Context ?? Array.Empty<ConversationTurn>(),
+                ConversationLabel = selection.ConversationLabel,
                 OcrImageBase64 = selection.OcrImageBase64,
                 OcrImageWidth = selection.OcrImageWidth,
-                OcrImageHeight = selection.OcrImageHeight
+                OcrImageHeight = selection.OcrImageHeight,
+                OcrContentTop = selection.OcrContentTop
             };
         }
     }
@@ -45,6 +50,7 @@ namespace SnkMessage
         public IReadOnlyList<string> Suggestions { get; set; }
         public IReadOnlyList<ConversationTurn> Context { get; set; }
         public string ContextSource { get; set; }
+        public string ConversationLabel { get; set; }
 
         public static AiResult Interpretation(string text)
         {

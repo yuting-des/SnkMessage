@@ -51,7 +51,7 @@ namespace SnkMessage
                 string text = (result.Text ?? String.Empty).Trim();
                 if (text.Length == 0) throw new AiServiceException("算法服务没有返回解读内容。");
                 if (text.Length > 500) text = text.Substring(0, 500);
-                AiResult validated=AiResult.Interpretation(text);validated.Context=result.Context;validated.ContextSource=result.ContextSource;return validated;
+                AiResult validated=AiResult.Interpretation(text);validated.Context=result.Context;validated.ContextSource=result.ContextSource;validated.ConversationLabel=result.ConversationLabel;return validated;
             }
 
             IEnumerable<string> source = result.Suggestions ?? Array.Empty<string>();
@@ -63,7 +63,7 @@ namespace SnkMessage
                 .Select(value => value.Length > 280 ? value.Substring(0, 280) : value)
                 .ToArray();
             if (suggestions.Length == 0) throw new AiServiceException("算法服务没有返回可用建议。");
-            AiResult suggestionResult=AiResult.SuggestionList(suggestions);suggestionResult.Context=result.Context;suggestionResult.ContextSource=result.ContextSource;return suggestionResult;
+            AiResult suggestionResult=AiResult.SuggestionList(suggestions);suggestionResult.Context=result.Context;suggestionResult.ContextSource=result.ContextSource;suggestionResult.ConversationLabel=result.ConversationLabel;return suggestionResult;
         }
 
         internal void ReloadLocalConfiguration()

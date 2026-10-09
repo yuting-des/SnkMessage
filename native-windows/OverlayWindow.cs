@@ -87,7 +87,7 @@ namespace SnkMessage
         {
             if(context==null)return;
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
-            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context);CloseMenu();if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
             string loading=mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达";
             int contextCount=context.Context==null?0:context.Context.Count;
             if(contextCount>0)loading+=" · 上下文 "+contextCount+" 条";
@@ -101,6 +101,7 @@ namespace SnkMessage
                     context.Context=result.Context;
                     context.ContextDiagnostic=result.ContextSource=="ocr"?"已通过本地 OCR 读取":"已从微信消息列表读取";
                 }
+                if(!String.IsNullOrWhiteSpace(result.ConversationLabel))context.ConversationLabel=result.ConversationLabel;
                 highlight.Hide();ShowResult(result);
             }
             catch(OperationCanceledException){ }
@@ -168,13 +169,14 @@ namespace SnkMessage
             int count=context==null||context.Context==null?0:context.Context.Count;
             var row=new Grid{Margin=new Thickness(2,0,2,6)};row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             string emptyReason=context==null||String.IsNullOrWhiteSpace(context.ContextDiagnostic)?"未读取到上下文":context.ContextDiagnostic;
-            row.Children.Add(new TextBlock{Text=count>0?"已参考 "+count+" 条附近消息":"仅分析选中文字 · "+emptyReason,FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center});
+            string subject=context==null||String.IsNullOrWhiteSpace(context.ConversationLabel)?String.Empty:"对象："+context.ConversationLabel+" · ";
+            row.Children.Add(new TextBlock{Text=count>0?subject+"已参考 "+count+" 条附近消息":"仅分析选中文字 · "+emptyReason,FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center});
             if(count>0)
             {
                 var view=FlatButton(new TextBlock{Text="查看",FontSize=10},10);view.Foreground=Brush("#5A2DFC");view.Padding=new Thickness(5,1,5,1);Grid.SetColumn(view,1);
                 view.Click+=delegate
                 {
-                    string details=String.Join(Environment.NewLine+Environment.NewLine,context.Context.Select((turn,index)=>(index+1)+". "+(turn.Role=="user"?"我":"对方")+"："+turn.Text));
+                    string details=String.Join(Environment.NewLine+Environment.NewLine,context.Context.Select((turn,index)=>(index+1)+". "+(turn.Role=="user"?"我":String.IsNullOrWhiteSpace(turn.Speaker)?"对方":"对方（"+turn.Speaker+"）")+"："+turn.Text));
                     MessageBox.Show(details,"本次发送给模型的附近上下文",MessageBoxButton.OK,MessageBoxImage.Information);
                 };
                 row.Children.Add(view);
@@ -209,5 +211,6 @@ namespace SnkMessage
         public WindowHighlight(){WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;AllowsTransparency=true;Background=Brushes.Transparent;Topmost=true;ShowInTaskbar=false;ShowActivated=false;IsHitTestVisible=false;UseLayoutRounding=true;SnapsToDevicePixels=true;Content=new Border{Background=new SolidColorBrush(Color.FromArgb(28,90,45,252)),BorderBrush=new SolidColorBrush(Color.FromRgb(164,151,255)),BorderThickness=new Thickness(5),CornerRadius=new CornerRadius(9)};}
         protected override void OnSourceInitialized(EventArgs e){base.OnSourceInitialized(e);var hwnd=new WindowInteropHelper(this).Handle;int style=NativeMethods.GetWindowLong(hwnd,NativeMethods.GWL_EXSTYLE);NativeMethods.SetWindowLong(hwnd,NativeMethods.GWL_EXSTYLE,style|NativeMethods.WS_EX_TOOLWINDOW|NativeMethods.WS_EX_NOACTIVATE);}
         public void ShowAround(IntPtr hwnd,Func<Point,Point> convert){if(hwnd==IntPtr.Zero)return;NativeMethods.RECT rect;if(!NativeMethods.GetWindowRect(hwnd,out rect))return;Point a=convert(new Point(rect.Left,rect.Top)),b=convert(new Point(rect.Right,rect.Bottom));Left=a.X;Top=a.Y;Width=Math.Max(1,b.X-a.X);Height=Math.Max(1,b.Y-a.Y);Show();}
+        public void ShowRegion(Rect rect,Func<Point,Point> convert){if(rect.IsEmpty)return;Point a=convert(new Point(rect.Left,rect.Top)),b=convert(new Point(rect.Right,rect.Bottom));Left=a.X;Top=a.Y;Width=Math.Max(1,b.X-a.X);Height=Math.Max(1,b.Y-a.Y);Show();}
     }
 }

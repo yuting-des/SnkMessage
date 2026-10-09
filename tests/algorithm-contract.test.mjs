@@ -38,6 +38,24 @@ test("limited nearby context is validated and included in the prompt", () => {
   assert.match(messages[1].content, /<selected_text>\n那就这样吧/);
 });
 
+test("conversation identity, speakers, and the user's own style samples reach the prompt", () => {
+  const request = {
+    mode: "reply",
+    selectedText: "今天可以先发第一版",
+    conversationLabel: "产品讨论群",
+    context: [
+      { role: "other", speaker: "小林", text: "今天可以先发第一版" },
+      { role: "user", text: "行，我晚点发" },
+    ],
+  };
+  assert.doesNotThrow(() => validateRequest(request));
+  const messages = buildMessages(request);
+  assert.match(messages[0].content, /模仿附近聊天中“我”的句长/);
+  assert.match(messages[1].content, /聊天对象或会话：产品讨论群/);
+  assert.match(messages[1].content, /对方（小林）：今天可以先发第一版/);
+  assert.match(messages[1].content, /我：行，我晚点发/);
+});
+
 test("oversized context is rejected", () => {
   const context = Array.from({ length: 9 }, () => ({ role: "other", text: "消息" }));
   assert.throws(() => validateRequest({ mode: "interpret", selectedText: "好", context }), /CONTEXT_TOO_LONG/);
