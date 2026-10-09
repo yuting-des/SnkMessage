@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,11 +17,11 @@ namespace SnkMessage
 
         internal async Task EnsureStartedAsync(CancellationToken cancellationToken)
         {
-            if(await IsHealthyAsync(cancellationToken))return;
+            if(await IsRealProviderHealthyAsync(cancellationToken))return;
             await gate.WaitAsync(cancellationToken);
             try
             {
-                if(await IsHealthyAsync(cancellationToken))return;
+                if(await IsRealProviderHealthyAsync(cancellationToken))return;
                 StopOwnedProcess();
                 string script=FindServerScript();
                 if(script==null)throw new AiServiceException("未找到本地算法服务文件，请重新安装 SnkMessage。");
@@ -29,6 +30,13 @@ namespace SnkMessage
                 start.ArgumentList.Add(script);
                 string key=CredentialStore.ReadApiKey();
                 if(!String.IsNullOrWhiteSpace(key))start.Environment["OPENROUTER_API_KEY"]=key;
+                string configuredProvider=Environment.GetEnvironmentVariable("SNKMESSAGE_AI_PROVIDER");
+                bool mockRequested=String.Equals(configuredProvider,"mock",StringComparison.OrdinalIgnoreCase);
+                bool environmentFile=File.Exists(Path.Combine(Path.GetDirectoryName(script),".env.local"));
+                bool environmentKey=!String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENROUTER_API_KEY"));
+                if(!mockRequested&&String.IsNullOrWhiteSpace(key)&&!environmentKey&&!environmentFile)
+                    throw new AiServiceException("尚未配置 OpenRouter API Key。请右键托盘图标，选择“设置 OpenRouter API Key”。");
+                start.Environment["SNKMESSAGE_AI_PROVIDER"]=String.IsNullOrWhiteSpace(configuredProvider)?"openrouter":configuredProvider;
                 process=new Process{StartInfo=start,EnableRaisingEvents=true};
                 process.OutputDataReceived+=delegate{};process.ErrorDataReceived+=delegate{};
                 try{process.Start();process.BeginOutputReadLine();process.BeginErrorReadLine();}
@@ -37,7 +45,7 @@ namespace SnkMessage
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if(process.HasExited)throw new AiServiceException("本地算法服务启动失败，请检查 API 设置。");
-                    if(await IsHealthyAsync(cancellationToken))return;
+                    if(await IsRealProviderHealthyAsync(cancellationToken))return;
                     await Task.Delay(100,cancellationToken);
                 }
                 throw new AiServiceException("本地算法服务启动超时。");
@@ -47,14 +55,19 @@ namespace SnkMessage
 
         internal void Restart(){StopOwnedProcess();}
 
-        private async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
+        private async Task<bool> IsRealProviderHealthyAsync(CancellationToken cancellationToken)
         {
             try
             {
                 using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 timeout.CancelAfter(350);
                 using HttpResponseMessage response=await HealthClient.GetAsync("http://127.0.0.1:8787/health",timeout.Token);
-                return response.IsSuccessStatusCode;
+                if(!response.IsSuccessStatusCode)return false;
+                string json=await response.Content.ReadAsStringAsync(timeout.Token);
+                using JsonDocument document=JsonDocument.Parse(json);
+                if(!document.RootElement.TryGetProperty("provider",out JsonElement provider))return false;
+                bool mockRequested=String.Equals(Environment.GetEnvironmentVariable("SNKMESSAGE_AI_PROVIDER"),"mock",StringComparison.OrdinalIgnoreCase);
+                return provider.GetString()!="mock"||mockRequested;
             }
             catch{return false;}
         }

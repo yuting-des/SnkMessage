@@ -21,5 +21,6 @@ $env:SNKMESSAGE_AI_ENDPOINT='http://127.0.0.1:8787/v1/generate'
 ```
 
 托盘菜单可以把 OpenRouter API Key 保存到 Windows 凭据管理器，密钥只在启动本地算法子进程时注入。构建目录包含算法服务和 Node 运行时后，用户无需手动运行 Node 命令。
+未配置密钥时，客户端会明确提示设置 API Key，不再静默使用预制的 Mock 回复。只有显式设置 `SNKMESSAGE_AI_PROVIDER=mock` 才进入离线模拟模式。
 
 默认开启“使用附近聊天上下文”。程序通过 UI Automation 最多读取选中文字附近 5 条可见文本，分析状态会显示实际读取数量；托盘菜单可以随时关闭。无法读取时 `context` 为空，已有的选中文字流程仍然可用。上下文和选中文字只随当前生成请求发送，不写入本地日志。
