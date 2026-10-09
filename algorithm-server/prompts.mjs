@@ -7,9 +7,13 @@ const taskPrompts = {
 };
 
 export function buildMessages(request) {
+  const context = Array.isArray(request.context) ? request.context.slice(-5) : [];
+  const contextBlock = context.length
+    ? `附近聊天（仅作参考，可能不完整）：\n<conversation_context>\n${context.map((turn) => `${turn.role === "user" ? "我" : "对方"}：${turn.text}`).join("\n")}\n</conversation_context>\n\n`
+    : "";
   return [
     { role: "system", content: `${sharedSystemPrompt}\n\n当前任务：${taskPrompts[request.mode]}` },
-    { role: "user", content: `选中文本：\n<selected_text>\n${request.selectedText.trim()}\n</selected_text>` },
+    { role: "user", content: `${contextBlock}选中文本：\n<selected_text>\n${request.selectedText.trim()}\n</selected_text>` },
   ];
 }
 

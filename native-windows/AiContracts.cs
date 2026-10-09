@@ -19,15 +19,15 @@ namespace SnkMessage
         public string Language { get; set; }
         public IReadOnlyList<ConversationTurn> Context { get; set; }
 
-        public static AiRequest FromSelection(AiMode mode, string selectedText)
+        public static AiRequest FromSelection(AiMode mode, SelectionContext selection)
         {
             return new AiRequest
             {
                 RequestId = Guid.NewGuid().ToString("N"),
                 Mode = mode,
-                SelectedText = selectedText,
+                SelectedText = selection.Text,
                 Language = "zh-CN",
-                Context = Array.Empty<ConversationTurn>()
+                Context = selection.Context ?? Array.Empty<ConversationTurn>()
             };
         }
     }

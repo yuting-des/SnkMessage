@@ -46,7 +46,7 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     const timeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     const code = timeout ? "PROVIDER_TIMEOUT" : error instanceof Error ? error.message : "UNKNOWN_ERROR";
-    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG"].includes(code);
+    const clientError = ["REQUEST_TOO_LARGE", "INVALID_MODE", "EMPTY_SELECTION", "SELECTION_TOO_LONG", "INVALID_CONTEXT", "CONTEXT_TOO_LONG"].includes(code);
     console.warn(`[ai] status=${code} elapsedMs=${Date.now()-startedAt}`);
     return sendJson(response, clientError ? 400 : timeout ? 504 : 500, { error: code });
   }

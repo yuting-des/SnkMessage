@@ -12,6 +12,7 @@ namespace SnkMessage
     {
         private readonly Application app;
         private readonly OverlayWindow overlay;
+        private readonly IAiService aiService;
         private GlobalSelectionWatcher watcher;
         private ClipboardWatcher clipboardWatcher;
         private Forms.NotifyIcon tray;
@@ -19,7 +20,7 @@ namespace SnkMessage
 
         public AppController(Application application)
         {
-            app=application;overlay=new OverlayWindow(AiServiceFactory.Create());overlay.SuggestionChosen+=OnSuggestionChosen;
+            app=application;aiService=AiServiceFactory.Create();overlay=new OverlayWindow(aiService);overlay.SuggestionChosen+=OnSuggestionChosen;
         }
 
         public void Start()
@@ -27,6 +28,18 @@ namespace SnkMessage
             tray=new Forms.NotifyIcon{Icon=SystemIcons.Application,Text="SnkMessage",Visible=true};
             var menu=new Forms.ContextMenuStrip();
             menu.Items.Add("显示使用说明",null,delegate{tray.ShowBalloonTip(4500,"SnkMessage","在微信中拖动选中文字；若该区域无法直接读取，按 Ctrl+C 后 AI Bar 会出现。",Forms.ToolTipIcon.Info);});
+            var contextItem=new Forms.ToolStripMenuItem("使用附近聊天上下文"){Checked=ContextCapture.Enabled,CheckOnClick=true};
+            contextItem.CheckedChanged+=delegate{ContextCapture.Enabled=contextItem.Checked;};
+            menu.Items.Add(contextItem);
+            menu.Items.Add("设置 OpenRouter API Key",null,delegate
+            {
+                var window=new ApiKeyWindow();
+                if(window.ShowDialog()==true)
+                {
+                    if(aiService is AiCoordinator coordinator)coordinator.ReloadLocalConfiguration();
+                    tray.ShowBalloonTip(2500,"设置已保存","新的 API Key 将用于下一次生成。",Forms.ToolTipIcon.Info);
+                }
+            });
             menu.Items.Add("退出",null,delegate{app.Shutdown();});tray.ContextMenuStrip=menu;
             tray.ShowBalloonTip(3500,"SnkMessage 已启动","选中文字即可唤起；无法直接读取的微信消息请按 Ctrl+C。",Forms.ToolTipIcon.Info);
             watcher=new GlobalSelectionWatcher();watcher.MouseCompleted+=OnMouseCompleted;
@@ -137,6 +150,7 @@ namespace SnkMessage
             if(watcher!=null)watcher.Dispose();
             if(clipboardWatcher!=null)clipboardWatcher.Dispose();
             overlay.Close();
+            if(aiService is IDisposable disposable)disposable.Dispose();
             if(tray!=null){tray.Visible=false;tray.Dispose();}
         }
     }

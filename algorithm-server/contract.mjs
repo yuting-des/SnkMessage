@@ -4,6 +4,14 @@ export function validateRequest(body) {
   if (!body || !modes.has(body.mode)) throw new Error("INVALID_MODE");
   if (typeof body.selectedText !== "string" || !body.selectedText.trim()) throw new Error("EMPTY_SELECTION");
   if (body.selectedText.length > 6000) throw new Error("SELECTION_TOO_LONG");
+  if (body.context !== undefined && !Array.isArray(body.context)) throw new Error("INVALID_CONTEXT");
+  if (Array.isArray(body.context)) {
+    if (body.context.length > 8) throw new Error("CONTEXT_TOO_LONG");
+    for (const turn of body.context) {
+      if (!turn || !["user", "other"].includes(turn.role) || typeof turn.text !== "string" || !turn.text.trim() || turn.text.length > 1000)
+        throw new Error("INVALID_CONTEXT");
+    }
+  }
 }
 
 export function validateResult(mode, result, selectedText = "") {

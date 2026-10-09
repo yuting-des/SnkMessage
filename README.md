@@ -1,6 +1,14 @@
 # Message Replier
 
-第一阶段：以 Windows 风格模拟聊天窗口承载 Figma AI 组件的可交互 Demo。无需安装依赖；需要 Node.js 20 或以上。
+项目包含两部分：保留用于 UI 对照的浏览器 Demo，以及可在真实微信中工作的原生 Windows AI Bar。当前开发重点是原生版本；最初的模拟微信版本保存在 `archive/uidemo` 分支。
+
+## 原生 Windows 版本
+
+`native-windows` 使用 .NET 8、Windows UI Automation 和系统级选区监听。它只在微信窗口中触发，支持解读、回复建议和表达优化，点击建议后写入微信输入框，但不会替用户发送。
+
+客户端会自动启动发布目录中的 `algorithm-server`，并通过 `/health` 检查服务，无需用户手动运行 Node。托盘菜单可以把 OpenRouter API Key 保存到 Windows 凭据管理器，也可以开关“使用附近聊天上下文”。开启后，程序最多读取选中文字附近 5 条 UI Automation 可见文本；读取失败时自动退回仅处理选中文字。
+
+首次构建运行 `native-windows/setup-node.ps1`，然后运行 `native-windows/build.ps1`。完整发布目录位于 `dist`，需要连同 `SnkMessage-native-v0.3.exe`、`algorithm-server` 和 `runtime` 一起分发。
 
 ## 运行
 
@@ -27,7 +35,7 @@ Esc 或点击外部关闭浮层；Tab 可从选区进入工具条。右上角可
 
 Figma 来源：94eWQhY6bIxNKLZDDoHebE；工具条 35:3986、加载 35:6593、解读 35:6656、表达 35:10381。背景按用户要求独立简化为 Windows 风格。字体使用 Segoe UI / Microsoft YaHei UI；表达项省略复制图标，点击直接替换。工具条箭头可展开菜单，切换解读和回复建议；切换不直接生成。解读加载期间按 Figma 35:6589 高亮当前会话区域，结束或取消时清除。
 
-目前是浏览器组件 Demo，不是系统级 Windows 悬浮程序；未接入真实微信、UI Automation 或模型 API。模拟服务对示例意图提供固定建议，其他意图仅保留原文做简单包装。后续先接真实服务，再评估桌面宿主和跨应用集成。
+本节描述的是保留下来的浏览器 UI Demo；真实微信集成位于 `native-windows`。
 
 ## Windows 桌面版
 

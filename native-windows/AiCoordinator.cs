@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SnkMessage
 {
-    internal sealed class AiCoordinator : IAiService
+    internal sealed class AiCoordinator : IAiService, IDisposable
     {
         private readonly IAiService inner;
         private readonly TimeSpan timeout;
@@ -65,6 +65,16 @@ namespace SnkMessage
             if (suggestions.Length == 0) throw new AiServiceException("算法服务没有返回可用建议。");
             return AiResult.SuggestionList(suggestions);
         }
+
+        internal void ReloadLocalConfiguration()
+        {
+            if(inner is LocalAlgorithmAiService local)local.ReloadConfiguration();
+        }
+
+        public void Dispose()
+        {
+            if(inner is IDisposable disposable)disposable.Dispose();
+        }
     }
 
     internal static class AiServiceFactory
@@ -73,7 +83,7 @@ namespace SnkMessage
         {
             string configuredEndpoint = Environment.GetEnvironmentVariable("SNKMESSAGE_AI_ENDPOINT");
             IAiService provider = String.IsNullOrWhiteSpace(configuredEndpoint)
-                ? new MockAiService()
+                ? new LocalAlgorithmAiService()
                 : new RemoteAiService(ParseEndpoint(configuredEndpoint));
             return new AiCoordinator(provider, TimeSpan.FromSeconds(25));
         }

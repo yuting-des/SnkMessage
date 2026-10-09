@@ -86,8 +86,11 @@ namespace SnkMessage
         {
             if(context==null)return;
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
-            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context.Text);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?174:166,34);shell.Padding=new Thickness(6);
-            shell.Child=IconLabel(LoadingIcon(),mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达",13);
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context);CloseMenu();highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
+            string loading=mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达";
+            int contextCount=context.Context==null?0:context.Context.Count;
+            if(contextCount>0)loading+=" · 上下文 "+contextCount+" 条";
+            shell.Child=IconLabel(LoadingIcon(),loading,13);
             try
             {
                 AiResult result=await aiService.GenerateAsync(request,cancellation.Token);

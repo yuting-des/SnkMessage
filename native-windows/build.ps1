@@ -21,12 +21,27 @@ $publishArguments = @(
 )
 if (Test-Path -LiteralPath $localPackages) {
     $publishArguments += @('--source', $localPackages)
+} else {
+    $publishArguments += @('--source', 'https://api.nuget.org/v3/index.json')
 }
-$publishArguments += @('--source', 'https://api.nuget.org/v3/index.json')
 
 & $dotnet @publishArguments
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 New-Item -ItemType Directory -Path (Split-Path $dist -Parent) -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $publish 'SnkMessage.exe') -Destination $dist -Force
+$serviceSource = Join-Path $repository 'algorithm-server'
+$serviceDestination = Join-Path (Split-Path $dist -Parent) 'algorithm-server'
+New-Item -ItemType Directory -Path $serviceDestination -Force | Out-Null
+Copy-Item -Path (Join-Path $serviceSource '*.mjs') -Destination $serviceDestination -Force
+Copy-Item -Path (Join-Path $serviceSource '.env.example') -Destination $serviceDestination -Force
+Copy-Item -Path (Join-Path $serviceSource 'providers') -Destination $serviceDestination -Recurse -Force
+$bundledNode = Join-Path $repository '.tools\node\node.exe'
+if (Test-Path -LiteralPath $bundledNode) {
+    $runtimeDestination = Join-Path (Split-Path $dist -Parent) 'runtime'
+    New-Item -ItemType Directory -Path $runtimeDestination -Force | Out-Null
+    Copy-Item -LiteralPath $bundledNode -Destination (Join-Path $runtimeDestination 'node.exe') -Force
+} else {
+    Write-Warning 'No bundled Node runtime found at .tools\node\node.exe; the target computer must provide Node.js on PATH.'
+}
 Write-Host "Built: $dist"
