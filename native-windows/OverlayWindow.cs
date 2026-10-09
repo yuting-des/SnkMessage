@@ -162,7 +162,8 @@ namespace SnkMessage
         {
             int count=context==null||context.Context==null?0:context.Context.Count;
             var row=new Grid{Margin=new Thickness(2,0,2,6)};row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
-            row.Children.Add(new TextBlock{Text=count>0?"已参考 "+count+" 条附近消息":"仅分析选中文字（未读取到上下文）",FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),VerticalAlignment=VerticalAlignment.Center});
+            string emptyReason=context==null||String.IsNullOrWhiteSpace(context.ContextDiagnostic)?"未读取到上下文":context.ContextDiagnostic;
+            row.Children.Add(new TextBlock{Text=count>0?"已参考 "+count+" 条附近消息":"仅分析选中文字 · "+emptyReason,FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center});
             if(count>0)
             {
                 var view=FlatButton(new TextBlock{Text="查看",FontSize=10},10);view.Foreground=Brush("#5A2DFC");view.Padding=new Thickness(5,1,5,1);Grid.SetColumn(view,1);

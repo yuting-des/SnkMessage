@@ -29,6 +29,7 @@ namespace SnkMessage
         public AutomationElement SourceElement;
         public bool SourceIsEditable;
         public IReadOnlyList<ConversationTurn> Context = Array.Empty<ConversationTurn>();
+        public string ContextDiagnostic;
     }
 
     internal sealed class GlobalSelectionWatcher : IDisposable
@@ -101,7 +102,9 @@ namespace SnkMessage
             try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
             if(!IsFromTargetProcess(element,hwnd))element=null;
             string selectedText=text.Trim();
-            return new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=CollectNearbyContext(element,hwnd,selectedText,new Rect(x,y,1,1)) };
+            string diagnostic;
+            IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,new Rect(x,y,1,1),out diagnostic);
+            return new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=nearby, ContextDiagnostic=diagnostic };
         }
 
         private static SelectionContext TryAutomationSelection(AutomationElement start, IntPtr hwnd)
@@ -140,7 +143,9 @@ namespace SnkMessage
                     Rect[] rectangles = ranges[0].GetBoundingRectangles();
                     Rect bounds = rectangles.Length > 0 ? rectangles[0] : Rect.Empty;
                     string selectedText=text.Trim();
-                    return new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=CollectNearbyContext(element,hwnd,selectedText,bounds) };
+                    string diagnostic;
+                    IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,bounds,out diagnostic);
+                    return new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=nearby, ContextDiagnostic=diagnostic };
                 }
                 catch { }
             }
@@ -165,31 +170,39 @@ namespace SnkMessage
             public Rect Bounds;
         }
 
-        private static IReadOnlyList<ConversationTurn> CollectNearbyContext(AutomationElement element,IntPtr hwnd,string selectedText,Rect selectedBounds)
+        private static IReadOnlyList<ConversationTurn> CollectNearbyContext(AutomationElement element,IntPtr hwnd,string selectedText,Rect selectedBounds,out string diagnostic)
         {
-            if(!ContextCapture.Enabled||!IsFromTargetProcess(element,hwnd)||hwnd==IntPtr.Zero)return Array.Empty<ConversationTurn>();
+            diagnostic=String.Empty;
+            if(!ContextCapture.Enabled){diagnostic="上下文功能已关闭";return Array.Empty<ConversationTurn>();}
+            if(!IsFromTargetProcess(element,hwnd)||hwnd==IntPtr.Zero){diagnostic="目标微信控件未暴露 UI Automation";return Array.Empty<ConversationTurn>();}
             try
             {
-                AutomationElement root=element;
-                for(int i=0;i<5;i++)
+                AutomationElement windowRoot=AutomationElement.FromHandle(hwnd);
+                AutomationElement root=FindChatMessageList(windowRoot,hwnd);
+                bool messageListFound=root!=null;
+                if(root==null)
                 {
-                    AutomationElement parent=TreeWalker.ControlViewWalker.GetParent(root);
-                    if(!IsFromTargetProcess(parent,hwnd))break;
-                    root=parent;
-                    int nativeHandle=(int)root.GetCurrentPropertyValue(AutomationElement.NativeWindowHandleProperty,true);
-                    if(nativeHandle!=0&&new IntPtr(nativeHandle)==hwnd)break;
+                    root=element;
+                    for(int i=0;i<8;i++)
+                    {
+                        AutomationElement parent=TreeWalker.ControlViewWalker.GetParent(root);
+                        if(!IsFromTargetProcess(parent,hwnd))break;
+                        root=parent;
+                        int nativeHandle=(int)root.GetCurrentPropertyValue(AutomationElement.NativeWindowHandleProperty,true);
+                        if(nativeHandle!=0&&new IntPtr(nativeHandle)==hwnd)break;
+                    }
                 }
 
-                var condition=new OrCondition(
-                    new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text),
-                    new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem));
-                AutomationElementCollection nodes=root.FindAll(TreeScope.Descendants,condition);
+                AutomationElementCollection nodes=root.FindAll(TreeScope.Descendants,System.Windows.Automation.Condition.TrueCondition);
                 var nearby=new List<NearbyText>();
-                int limit=Math.Min(nodes.Count,120);
+                int limit=Math.Min(nodes.Count,2000);
                 for(int i=0;i<limit;i++)
                 {
                     AutomationElement node=nodes[i];
                     if(!IsFromTargetProcess(node,hwnd))continue;
+                    ControlType controlType=node.GetCurrentPropertyValue(AutomationElement.ControlTypeProperty,true) as ControlType;
+                    bool readable=controlType==ControlType.Text||controlType==ControlType.ListItem||controlType==ControlType.DataItem||controlType==ControlType.Custom;
+                    if(!readable)continue;
                     string text=ReadElementText(node);
                     if(String.IsNullOrWhiteSpace(text))continue;
                     text=text.Trim();
@@ -209,9 +222,46 @@ namespace SnkMessage
                 var chosen=nearby.Skip(start).Take(5).ToList();
                 NativeMethods.RECT windowRect;
                 double center=NativeMethods.GetWindowRect(hwnd,out windowRect)?(windowRect.Left+windowRect.Right)/2.0:0;
-                return chosen.Select(item=>new ConversationTurn{Role=center>0&&item.Bounds.Left+item.Bounds.Width/2>center?"user":"other",Text=item.Text}).ToArray();
+                ConversationTurn[] result=chosen.Select(item=>new ConversationTurn{Role=center>0&&item.Bounds.Left+item.Bounds.Width/2>center?"user":"other",Text=item.Text}).ToArray();
+                diagnostic=result.Length>0?"已从微信消息列表读取":messageListFound?"已找到消息列表，但没有可读文本":"未找到新版微信消息列表锚点";
+                return result;
             }
-            catch{return Array.Empty<ConversationTurn>();}
+            catch{diagnostic="微信 UI Automation 读取异常";return Array.Empty<ConversationTurn>();}
+        }
+
+        private static AutomationElement FindChatMessageList(AutomationElement windowRoot,IntPtr hwnd)
+        {
+            if(!IsFromTargetProcess(windowRoot,hwnd))return null;
+            try
+            {
+                AutomationElementCollection nodes=windowRoot.FindAll(TreeScope.Descendants,System.Windows.Automation.Condition.TrueCondition);
+                AutomationElement best=null;double bestArea=0;
+                int limit=Math.Min(nodes.Count,2500);
+                for(int i=0;i<limit;i++)
+                {
+                    AutomationElement node=nodes[i];
+                    if(!IsFromTargetProcess(node,hwnd))continue;
+                    string automationId=PropertyString(node,AutomationElement.AutomationIdProperty);
+                    string className=PropertyString(node,AutomationElement.ClassNameProperty);
+                    bool matches=automationId.IndexOf("chat_message_list",StringComparison.OrdinalIgnoreCase)>=0||className.IndexOf("ChatMessage",StringComparison.OrdinalIgnoreCase)>=0;
+                    if(!matches)continue;
+                    Rect bounds=(Rect)node.GetCurrentPropertyValue(AutomationElement.BoundingRectangleProperty,true);
+                    double area=bounds.IsEmpty?0:bounds.Width*bounds.Height;
+                    if(area>bestArea){best=node;bestArea=area;}
+                }
+                return best;
+            }
+            catch{return null;}
+        }
+
+        private static string PropertyString(AutomationElement element,AutomationProperty property)
+        {
+            try
+            {
+                object value=element.GetCurrentPropertyValue(property,true);
+                return value==null||value==AutomationElement.NotSupported?String.Empty:value.ToString();
+            }
+            catch{return String.Empty;}
         }
 
         private static string ReadElementText(AutomationElement element)

@@ -21,6 +21,8 @@ namespace SnkMessage
         internal const uint INPUT_KEYBOARD = 1;
         internal const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         internal const uint MOUSEEVENTF_LEFTUP = 0x0004;
+        internal const uint SPI_GETSCREENREADER = 0x0046;
+        internal const uint SPI_SETSCREENREADER = 0x0047;
 
         internal delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
 
@@ -118,6 +120,10 @@ namespace SnkMessage
 
         [DllImport("user32.dll")]
         internal static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SystemParametersInfo(uint action, uint parameter, ref bool value, uint flags);
 
         internal static void SendShortcut(byte key)
         {

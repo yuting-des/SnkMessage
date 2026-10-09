@@ -17,6 +17,8 @@ namespace SnkMessage
         private ClipboardWatcher clipboardWatcher;
         private Forms.NotifyIcon tray;
         private bool capturing;
+        private bool screenReaderWasEnabled;
+        private bool screenReaderStateChanged;
 
         public AppController(Application application)
         {
@@ -25,6 +27,16 @@ namespace SnkMessage
 
         public void Start()
         {
+            bool current=false;
+            if(NativeMethods.SystemParametersInfo(NativeMethods.SPI_GETSCREENREADER,0,ref current,0))
+            {
+                screenReaderWasEnabled=current;
+                if(!current)
+                {
+                    bool enabled=true;
+                    screenReaderStateChanged=NativeMethods.SystemParametersInfo(NativeMethods.SPI_SETSCREENREADER,1,ref enabled,0);
+                }
+            }
             tray=new Forms.NotifyIcon{Icon=SystemIcons.Application,Text="SnkMessage",Visible=true};
             var menu=new Forms.ContextMenuStrip();
             menu.Items.Add("显示使用说明",null,delegate{tray.ShowBalloonTip(4500,"SnkMessage","在微信中拖动选中文字；若该区域无法直接读取，按 Ctrl+C 后 AI Bar 会出现。",Forms.ToolTipIcon.Info);});
@@ -151,6 +163,11 @@ namespace SnkMessage
             if(clipboardWatcher!=null)clipboardWatcher.Dispose();
             overlay.Close();
             if(aiService is IDisposable disposable)disposable.Dispose();
+            if(screenReaderStateChanged)
+            {
+                bool restore=screenReaderWasEnabled;
+                NativeMethods.SystemParametersInfo(NativeMethods.SPI_SETSCREENREADER,restore?1u:0u,ref restore,0);
+            }
             if(tray!=null){tray.Visible=false;tray.Dispose();}
         }
     }
