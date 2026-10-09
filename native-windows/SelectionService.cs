@@ -85,6 +85,7 @@ namespace SnkMessage
 
             AutomationElement element = null;
             try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
+            if(!IsFromTargetProcess(element,hwnd))element=null;
             var context = TryAutomationSelection(element, hwnd);
             if (context != null) return context;
             return null;
@@ -98,6 +99,7 @@ namespace SnkMessage
             if (pid != 0 && pid == (uint)Process.GetCurrentProcess().Id) return null;
             AutomationElement element = null;
             try { element = AutomationElement.FromPoint(new System.Windows.Point(x, y)); } catch { }
+            if(!IsFromTargetProcess(element,hwnd))element=null;
             string selectedText=text.Trim();
             return new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=CollectNearbyContext(element,hwnd,selectedText,new Rect(x,y,1,1)) };
         }
@@ -105,12 +107,23 @@ namespace SnkMessage
         private static SelectionContext TryAutomationSelection(AutomationElement start, IntPtr hwnd)
         {
             var candidates = new List<AutomationElement>();
-            if (start != null) candidates.Add(start);
-            try { if (AutomationElement.FocusedElement != null) candidates.Add(AutomationElement.FocusedElement); } catch { }
+            if (IsFromTargetProcess(start,hwnd)) candidates.Add(start);
+            try
+            {
+                AutomationElement focused=AutomationElement.FocusedElement;
+                if(IsFromTargetProcess(focused,hwnd))candidates.Add(focused);
+            }
+            catch { }
             AutomationElement current = start;
             for (int i = 0; i < 4 && current != null; i++)
             {
-                try { current = TreeWalker.ControlViewWalker.GetParent(current); if (current != null) candidates.Add(current); } catch { break; }
+                try
+                {
+                    current=TreeWalker.ControlViewWalker.GetParent(current);
+                    if(!IsFromTargetProcess(current,hwnd))break;
+                    candidates.Add(current);
+                }
+                catch { break; }
             }
 
             foreach (var element in candidates)
@@ -154,14 +167,14 @@ namespace SnkMessage
 
         private static IReadOnlyList<ConversationTurn> CollectNearbyContext(AutomationElement element,IntPtr hwnd,string selectedText,Rect selectedBounds)
         {
-            if(!ContextCapture.Enabled||element==null||hwnd==IntPtr.Zero)return Array.Empty<ConversationTurn>();
+            if(!ContextCapture.Enabled||!IsFromTargetProcess(element,hwnd)||hwnd==IntPtr.Zero)return Array.Empty<ConversationTurn>();
             try
             {
                 AutomationElement root=element;
                 for(int i=0;i<5;i++)
                 {
                     AutomationElement parent=TreeWalker.ControlViewWalker.GetParent(root);
-                    if(parent==null)break;
+                    if(!IsFromTargetProcess(parent,hwnd))break;
                     root=parent;
                     int nativeHandle=(int)root.GetCurrentPropertyValue(AutomationElement.NativeWindowHandleProperty,true);
                     if(nativeHandle!=0&&new IntPtr(nativeHandle)==hwnd)break;
@@ -176,6 +189,7 @@ namespace SnkMessage
                 for(int i=0;i<limit;i++)
                 {
                     AutomationElement node=nodes[i];
+                    if(!IsFromTargetProcess(node,hwnd))continue;
                     string text=ReadElementText(node);
                     if(String.IsNullOrWhiteSpace(text))continue;
                     text=text.Trim();
@@ -218,6 +232,19 @@ namespace SnkMessage
         private static string Normalize(string value)
         {
             return new string((value??String.Empty).Where(character=>!Char.IsWhiteSpace(character)&&!Char.IsPunctuation(character)).ToArray()).ToLowerInvariant();
+        }
+
+        private static bool IsFromTargetProcess(AutomationElement element,IntPtr hwnd)
+        {
+            if(element==null||hwnd==IntPtr.Zero)return false;
+            try
+            {
+                uint targetProcessId;
+                NativeMethods.GetWindowThreadProcessId(hwnd,out targetProcessId);
+                int elementProcessId=(int)element.GetCurrentPropertyValue(AutomationElement.ProcessIdProperty,true);
+                return targetProcessId!=0&&elementProcessId>0&&targetProcessId==(uint)elementProcessId;
+            }
+            catch{return false;}
         }
 
     }
