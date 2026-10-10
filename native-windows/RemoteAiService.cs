@@ -39,7 +39,10 @@ namespace SnkMessage
                 if ((int)response.StatusCode == 504)
                     throw new AiServiceException("模型响应超时，请重新尝试。");
                 if (!response.IsSuccessStatusCode)
-                    throw new AiServiceException("算法服务暂时不可用（" + (int)response.StatusCode + "）。");
+                {
+                    string payload=await response.Content.ReadAsStringAsync(cancellationToken);
+                    throw new AiServiceException(FriendlyError((int)response.StatusCode,ReadErrorCode(payload)));
+                }
 
                 AiResult result = await response.Content.ReadFromJsonAsync<AiResult>(JsonOptions, cancellationToken);
                 if (result == null) throw new AiServiceException("算法服务返回了空结果。");
@@ -57,6 +60,26 @@ namespace SnkMessage
             {
                 throw new AiServiceException("无法连接算法服务。", error);
             }
+        }
+
+        private static string ReadErrorCode(string payload)
+        {
+            try
+            {
+                using JsonDocument document=JsonDocument.Parse(payload);
+                return document.RootElement.TryGetProperty("error",out JsonElement error)?error.GetString()??String.Empty:String.Empty;
+            }
+            catch{return String.Empty;}
+        }
+
+        private static string FriendlyError(int status,string code)
+        {
+            if(code.StartsWith("OPENROUTER_429",StringComparison.Ordinal))return "模型请求较多，请稍后重试。";
+            if(code.StartsWith("OPENROUTER_5",StringComparison.Ordinal))return "模型供应商暂时不可用，已自动重试一次。";
+            if(code=="OPENROUTER_INVALID_JSON"||code=="INVALID_SUGGESTION_COUNT"||code=="EMPTY_INTERPRETATION")return "模型返回格式异常，请重新生成。";
+            if(code=="REQUEST_TOO_LARGE"||code=="INVALID_OCR_IMAGE")return "本次 OCR 扫描区域过大，请缩小微信窗口后重试。";
+            if(code.StartsWith("OPENROUTER_400",StringComparison.Ordinal))return "当前模型不接受本次请求格式，请检查模型配置。";
+            return "算法服务暂时不可用（"+status+(String.IsNullOrWhiteSpace(code)?String.Empty:"，"+code.Split(':')[0])+"）。";
         }
     }
 }

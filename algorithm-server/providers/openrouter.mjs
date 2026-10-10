@@ -8,26 +8,40 @@ export function createOpenRouterProvider(config, { fetchImpl = globalThis.fetch 
     name: "openrouter",
     model: config.model,
     async generate(request, { signal } = {}) {
-      const timeoutSignal = AbortSignal.timeout(config.timeoutMs);
-      const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
-      const response = await fetchImpl(config.baseUrl, {
-        method: "POST",
-        signal: combinedSignal,
-        headers: buildHeaders(config),
-        body: JSON.stringify(buildRequest(config, request)),
-      });
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const timeoutSignal = AbortSignal.timeout(config.timeoutMs);
+        const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+        const response = await fetchImpl(config.baseUrl, {
+          method: "POST",
+          signal: combinedSignal,
+          headers: buildHeaders(config),
+          body: JSON.stringify(buildRequest(config, request)),
+        });
 
-      if (!response.ok) {
-        const details = await safeErrorCode(response);
-        throw new Error(`OPENROUTER_${response.status}${details ? `:${details}` : ""}`);
+        if (!response.ok) {
+          const details = await safeErrorCode(response);
+          if (attempt === 0 && [408, 429, 502, 503, 504].includes(response.status)) {
+            await delay(400, signal);
+            continue;
+          }
+          throw new Error(`OPENROUTER_${response.status}${details ? `:${details}` : ""}`);
+        }
+
+        const payload = await response.json();
+        const content = payload?.choices?.[0]?.message?.content;
+        if (typeof content !== "string" || !content.trim()) throw new Error("OPENROUTER_EMPTY_RESPONSE");
+        return parseModelJson(content);
       }
-
-      const payload = await response.json();
-      const content = payload?.choices?.[0]?.message?.content;
-      if (typeof content !== "string" || !content.trim()) throw new Error("OPENROUTER_EMPTY_RESPONSE");
-      return parseModelJson(content);
+      throw new Error("OPENROUTER_RETRY_EXHAUSTED");
     },
   };
+}
+
+function delay(milliseconds, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, milliseconds);
+    signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+  });
 }
 
 function buildHeaders(config) {

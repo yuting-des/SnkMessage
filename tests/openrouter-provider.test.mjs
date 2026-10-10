@@ -72,6 +72,20 @@ test("OpenRouter adapter refuses to start without a server-side key", () => {
   assert.throws(() => createOpenRouterProvider(config({ apiKey: "" })), /OPENROUTER_API_KEY_MISSING/u);
 });
 
+test("OpenRouter adapter retries one transient provider failure", async () => {
+  let calls = 0;
+  const provider = createOpenRouterProvider(config(), {
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return new Response(JSON.stringify({ error: { code: 503 } }), { status: 503, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ type: "suggestions", text: "", suggestions: ["一", "二", "三"] }) } }] }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  const result = await provider.generate({ mode: "reply", selectedText: "收到" });
+  assert.equal(calls, 2);
+  assert.equal(result.suggestions.length, 3);
+});
+
 test("interpretation cannot merely repeat the selected text", () => {
   assert.throws(
     () => validateResult("interpret", { text: "这个方案再考虑一下。" }, "这个方案再考虑一下"),
