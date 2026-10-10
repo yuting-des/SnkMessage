@@ -308,7 +308,7 @@ namespace SnkMessage
                 int navigationWidth=Math.Min(windowWidth-260,(int)Math.Round(315*scale));
                 int left=window.Left+Math.Max(260,navigationWidth);
                 int top=window.Top+(int)Math.Round(30*scale);
-                int contentTop=(int)Math.Round(70*scale);
+                int contentTop=(int)Math.Round(62*scale);
                 double selectedY=context.Bounds.IsEmpty?window.Bottom-180:context.Bounds.Top;
                 int bottom=Math.Min(window.Bottom-110,(int)selectedY+120);
                 if(bottom-top<180)bottom=Math.Min(window.Bottom-80,top+Math.Min(700,windowHeight-130));

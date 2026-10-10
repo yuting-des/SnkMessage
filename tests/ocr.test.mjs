@@ -40,3 +40,18 @@ test("OCR keeps the conversation label and attaches group sender names to messag
     ],
   });
 });
+
+test("consecutive short chat messages are not mistaken for sender names", () => {
+  const blocks = [{ paragraphs: [
+    { text: "【图片】", confidence: 93, bbox: { x0: 50, x1: 130, y0: 10, y1: 32 } },
+    { text: "还是抽了", confidence: 50, bbox: { x0: 48, x1: 155, y0: 45, y1: 69 } },
+    { text: "哈哈哈哈", confidence: 51, bbox: { x0: 48, x1: 160, y0: 78, y1: 102 } },
+    { text: "好喜欢她的人设！", confidence: 54, bbox: { x0: 48, x1: 250, y0: 111, y1: 135 } },
+    { text: "而且好漂亮啊", confidence: 52, bbox: { x0: 48, x1: 220, y0: 144, y1: 168 } },
+  ] }];
+  assert.deepEqual(extractTurns(blocks, 1000, "而且好漂亮啊"), [
+    { role: "other", text: "还是抽了" },
+    { role: "other", text: "哈哈哈哈" },
+    { role: "other", text: "好喜欢她的人设！" },
+  ]);
+});

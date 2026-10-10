@@ -220,8 +220,8 @@ namespace SnkMessage
             string emptyReason=context==null||String.IsNullOrWhiteSpace(context.ContextDiagnostic)?"未读取到上下文":context.ContextDiagnostic;
             string subject=context==null||String.IsNullOrWhiteSpace(context.ConversationLabel)?String.Empty:"对象："+context.ConversationLabel+" · ";
             row.Children.Add(new TextBlock{Text=count>0?subject+"已参考 "+count+" 条附近消息":"仅分析选中文字 · "+emptyReason,FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center});
-            var editLabel=new TextBlock{Text="编辑",FontSize=10,Foreground=Brush("#5A2DFC"),VerticalAlignment=VerticalAlignment.Center};Grid.SetColumn(editLabel,1);row.Children.Add(editLabel);
-            var edit=FlatButton(row,10);edit.HorizontalContentAlignment=HorizontalAlignment.Stretch;edit.Padding=new Thickness(2,2,2,2);edit.ToolTip="查看并修正本次上下文";
+            var editLabel=new TextBlock{Text="查看",FontSize=10,Foreground=Brush("#5A2DFC"),VerticalAlignment=VerticalAlignment.Center};Grid.SetColumn(editLabel,1);row.Children.Add(editLabel);
+            var edit=FlatButton(row,10);edit.HorizontalContentAlignment=HorizontalAlignment.Stretch;edit.Padding=new Thickness(2,2,2,2);edit.ToolTip="查看本次上下文";
             edit.Click+=async delegate
             {
                 contextEditor=new ContextEditorWindow(context){Owner=this};

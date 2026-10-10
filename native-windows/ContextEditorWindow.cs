@@ -24,7 +24,7 @@ namespace SnkMessage
         internal ContextEditorWindow(SelectionContext context)
         {
             this.context=context;
-            Title="编辑本次上下文";Width=520;MinHeight=320;MaxHeight=700;SizeToContent=SizeToContent.Height;
+            Title="查看上下文";Width=520;MinHeight=320;MaxHeight=700;SizeToContent=SizeToContent.Height;
             WindowStyle=WindowStyle.ToolWindow;ResizeMode=ResizeMode.CanResize;WindowStartupLocation=WindowStartupLocation.CenterOwner;
             Background=Brush("#FFF8F6FF");Topmost=true;ShowInTaskbar=false;
 
@@ -32,7 +32,7 @@ namespace SnkMessage
             var footer=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,12,0,0)};
             DockPanel.SetDock(footer,Dock.Bottom);root.Children.Add(footer);
             var cancel=new Button{Content="取消",MinWidth=72,Height=30,Margin=new Thickness(0,0,8,0)};cancel.Click+=delegate{DialogResult=false;};footer.Children.Add(cancel);
-            var save=new Button{Content="保存并重新生成",MinWidth=126,Height=30,Background=Brush("#5A2DFC"),Foreground=Brushes.White};save.Click+=delegate{Save();};footer.Children.Add(save);
+            var save=new Button{Content="应用并重新生成",MinWidth=126,Height=30,Background=Brush("#5A2DFC"),Foreground=Brushes.White};save.Click+=delegate{Save();};footer.Children.Add(save);
 
             var content=new StackPanel();
             content.Children.Add(new TextBlock{Text="聊天对象或会话",FontSize=12,FontWeight=FontWeights.SemiBold,Margin=new Thickness(0,0,0,5)});

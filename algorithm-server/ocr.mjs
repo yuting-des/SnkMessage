@@ -12,7 +12,7 @@ function getWorker() {
     cacheMethod: "none",
     logger: () => {},
   }).then(async (worker) => {
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
     return worker;
   });
   return workerPromise;
@@ -46,7 +46,7 @@ export function extractConversation(blocks, imageWidth, selectedText = "", conte
       const text = clean(paragraph?.text);
       const box = paragraph?.bbox;
       if (!text || text.length > 500 || normalize(text) === selected || !box) continue;
-      if (Number.isFinite(paragraph?.confidence) && paragraph.confidence < 55) continue;
+      if (Number.isFinite(paragraph?.confidence) && paragraph.confidence < 42) continue;
       if (isUiNoise(text)) continue;
       entries.push({
         text,
@@ -121,14 +121,14 @@ function isUiNoise(value) {
 function isLikelySenderName(entry, next, imageWidth) {
   if (!next || !imageWidth || entry.text.length > 24 || /[，。！？!?：:；;]/u.test(entry.text)) return false;
   const gap = next.top - entry.bottom;
-  if (gap < -2 || gap > 34) return false;
+  if (gap < -2 || gap > 22) return false;
   const entryRight = entry.center > imageWidth * 0.57;
   const nextRight = next.center > imageWidth * 0.57;
   if (entryRight !== nextRight) return false;
   const aligned = entryRight ? Math.abs(entry.right - next.right) < 42 : Math.abs(entry.left - next.left) < 42;
   const entryHeight = Math.max(1, entry.bottom - entry.top);
   const nextHeight = Math.max(1, next.bottom - next.top);
-  return aligned && entryHeight <= nextHeight * 1.15;
+  return aligned && entryHeight <= nextHeight * .82;
 }
 
 function findConversationLabel(entries) {
