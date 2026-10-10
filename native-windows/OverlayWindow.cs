@@ -92,12 +92,13 @@ namespace SnkMessage
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
             int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context,adjustment,referenceSuggestions);CloseMenu();
             if(showAnalysisHighlight){if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);}else highlight.Hide();
-            Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
+            Topmost=false;Topmost=true;shell.Padding=new Thickness(6);
             string loading=mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达";
             if(adjustment=="shorter")loading="正在生成更简短的建议";else if(adjustment=="softer")loading="正在生成更委婉的建议";else if(adjustment=="direct")loading="正在生成更直接的建议";
             int contextCount=context.Context==null?0:context.Context.Count;
             if(contextCount>0)loading+=" · 上下文 "+contextCount+" 条";
-            shell.Child=IconLabel(LoadingIcon(),loading,13);
+            var loadingContent=IconLabel(LoadingIcon(),loading,13);loadingContent.Measure(new Size(Double.PositiveInfinity,34));
+            UseFixedSize(Math.Max(212,Math.Min(380,loadingContent.DesiredSize.Width+18)),34);shell.Child=loadingContent;
             try
             {
                 AiResult result=await aiService.GenerateAsync(request,cancellation.Token);
