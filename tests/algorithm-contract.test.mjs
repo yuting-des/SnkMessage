@@ -74,3 +74,19 @@ test("suggestion adjustment carries the previous options without a free-form pro
   assert.match(messages[1].content, /- 行，就这样/);
   assert.match(messages[1].content, /三条更委婉的版本/);
 });
+
+test("Windows client optional fields may be serialized as null", () => {
+  assert.doesNotThrow(() => validateRequest({
+    mode: "reply",
+    selectedText: "收到",
+    context: [{ role: "other", speaker: null, text: "好的" }],
+    conversationLabel: null,
+    contextSource: null,
+    adjustment: null,
+    referenceSuggestions: [],
+    ocrImageBase64: null,
+    ocrImageWidth: 0,
+    ocrImageHeight: 0,
+    ocrContentTop: 0,
+  }));
+});

@@ -10,13 +10,13 @@ export function validateRequest(body) {
     if (body.context.length > 8) throw new Error("CONTEXT_TOO_LONG");
     for (const turn of body.context) {
       if (!turn || !["user", "other"].includes(turn.role) || typeof turn.text !== "string" || !turn.text.trim() || turn.text.length > 1000
-        || (turn.speaker !== undefined && (typeof turn.speaker !== "string" || turn.speaker.length > 80)))
+        || (turn.speaker != null && (typeof turn.speaker !== "string" || turn.speaker.length > 80)))
         throw new Error("INVALID_CONTEXT");
     }
   }
-  if (body.ocrImageBase64 !== undefined && (typeof body.ocrImageBase64 !== "string" || body.ocrImageBase64.length > 7_500_000))
+  if (body.ocrImageBase64 != null && (typeof body.ocrImageBase64 !== "string" || body.ocrImageBase64.length > 7_500_000))
     throw new Error("INVALID_OCR_IMAGE");
-  if (body.conversationLabel !== undefined && (typeof body.conversationLabel !== "string" || body.conversationLabel.length > 100))
+  if (body.conversationLabel != null && (typeof body.conversationLabel !== "string" || body.conversationLabel.length > 100))
     throw new Error("INVALID_CONVERSATION_LABEL");
   if (body.adjustment !== undefined && body.adjustment !== null && !adjustments.has(body.adjustment)) throw new Error("INVALID_ADJUSTMENT");
   if (body.referenceSuggestions !== undefined) {
