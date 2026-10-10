@@ -9,7 +9,7 @@ test("algorithm provider returns one interpretation", async () => {
   assert.equal(result.type, "interpretation");
   assert.equal(typeof result.text, "string");
   assert.ok(result.text.length > 0);
-  assert.deepEqual(result.suggestions, []);
+  assert.equal(result.suggestions.length, 3);
 });
 
 for (const mode of ["reply", "polish"]) {
@@ -59,4 +59,18 @@ test("conversation identity, speakers, and the user's own style samples reach th
 test("oversized context is rejected", () => {
   const context = Array.from({ length: 9 }, () => ({ role: "other", text: "消息" }));
   assert.throws(() => validateRequest({ mode: "interpret", selectedText: "好", context }), /CONTEXT_TOO_LONG/);
+});
+
+test("suggestion adjustment carries the previous options without a free-form prompt", () => {
+  const request = {
+    mode: "reply",
+    selectedText: "那就这样吧",
+    adjustment: "softer",
+    referenceSuggestions: ["行，就这样", "可以", "没问题"],
+  };
+  assert.doesNotThrow(() => validateRequest(request));
+  const messages = buildMessages(request);
+  assert.match(messages[1].content, /上一轮建议/);
+  assert.match(messages[1].content, /- 行，就这样/);
+  assert.match(messages[1].content, /三条更委婉的版本/);
 });

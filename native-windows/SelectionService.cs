@@ -31,6 +31,7 @@ namespace SnkMessage
         public bool SourceIsEditable;
         public IReadOnlyList<ConversationTurn> Context = Array.Empty<ConversationTurn>();
         public string ContextDiagnostic;
+        public string ContextSource;
         public string ConversationLabel;
         public string OcrImageBase64;
         public int OcrImageWidth;
@@ -111,7 +112,7 @@ namespace SnkMessage
             string selectedText=text.Trim();
             string diagnostic;
             IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,new Rect(x,y,1,1),out diagnostic);
-            var result=new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=nearby, ContextDiagnostic=diagnostic };
+            var result=new SelectionContext { Text=selectedText, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Bounds=new Rect(x,y,1,1), Context=nearby, ContextDiagnostic=diagnostic, ContextSource=nearby.Count>0?"uia":null };
             AttachOcrFallback(result);return result;
         }
 
@@ -153,7 +154,7 @@ namespace SnkMessage
                     string selectedText=text.Trim();
                     string diagnostic;
                     IReadOnlyList<ConversationTurn> nearby=CollectNearbyContext(element,hwnd,selectedText,bounds,out diagnostic);
-                    var result=new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=nearby, ContextDiagnostic=diagnostic };
+                    var result=new SelectionContext { Text=selectedText, Bounds=bounds, TargetWindow=hwnd, SourceElement=element, SourceIsEditable=IsEditable(element), Context=nearby, ContextDiagnostic=diagnostic, ContextSource=nearby.Count>0?"uia":null };
                     AttachOcrFallback(result);return result;
                 }
                 catch { }

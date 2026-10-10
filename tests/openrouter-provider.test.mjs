@@ -57,6 +57,7 @@ test("OpenRouter adapter sends privacy routing and strict response schema", asyn
   assert.equal(captured.body.provider.data_collection, "deny");
   assert.equal(captured.body.provider.require_parameters, true);
   assert.equal(captured.body.response_format.type, "json_schema");
+  assert.equal(captured.body.response_format.json_schema.schema.properties.suggestions.minItems, 3);
   assert.equal(result.suggestions.length, 3);
 });
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ namespace SnkMessage
         private readonly WindowHighlight highlight;
         private readonly IAiService aiService;
         private Popup modePopup;
+        private ContextEditorWindow contextEditor;
         private SelectionContext context;
         private AiMode mode=AiMode.Interpret;
         private int operationVersion;
@@ -52,6 +54,7 @@ namespace SnkMessage
 
         public bool DismissIfOutside(int x,int y)
         {
+            if(contextEditor!=null&&contextEditor.IsVisible)return false;
             if(!IsVisible||IsInsideWindow(x,y)||IsInsidePopup(x,y))return false;Hide();return true;
         }
         private bool IsInsideWindow(int x,int y){var hwnd=new WindowInteropHelper(this).Handle;NativeMethods.RECT r;return hwnd!=IntPtr.Zero&&NativeMethods.GetWindowRect(hwnd,out r)&&x>=r.Left&&x<=r.Right&&y>=r.Top&&y<=r.Bottom;}
@@ -83,12 +86,13 @@ namespace SnkMessage
             var item=FlatButton(row,12);item.Height=32;item.HorizontalContentAlignment=HorizontalAlignment.Stretch;item.Padding=new Thickness(8,0,6,0);item.Foreground=mode==value?Brush("#5A2DFC"):Brush("#433956");item.Margin=new Thickness(0,0,0,2);item.Click+=async delegate{CloseMenu();mode=value;ShowBar();await RunAsync();};panel.Children.Add(item);
         }
 
-        private async Task RunAsync()
+        private async Task RunAsync(string adjustment=null,IReadOnlyList<string> referenceSuggestions=null)
         {
             if(context==null)return;
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
-            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context);CloseMenu();if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context,adjustment,referenceSuggestions);CloseMenu();if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
             string loading=mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达";
+            if(adjustment=="shorter")loading="正在生成更简短的建议";else if(adjustment=="softer")loading="正在生成更委婉的建议";else if(adjustment=="direct")loading="正在生成更直接的建议";
             int contextCount=context.Context==null?0:context.Context.Count;
             if(contextCount>0)loading+=" · 上下文 "+contextCount+" 条";
             shell.Child=IconLabel(LoadingIcon(),loading,13);
@@ -99,7 +103,8 @@ namespace SnkMessage
                 if(result.Context!=null&&result.Context.Count>0)
                 {
                     context.Context=result.Context;
-                    context.ContextDiagnostic=result.ContextSource=="ocr"?"已通过本地 OCR 读取":"已从微信消息列表读取";
+                    context.ContextSource=result.ContextSource;
+                    context.ContextDiagnostic=result.ContextSource=="ocr"?"已通过本地 OCR 读取":result.ContextSource=="manual"?"已手动修正上下文":"已从微信消息列表读取";
                 }
                 if(!String.IsNullOrWhiteSpace(result.ConversationLabel))context.ConversationLabel=result.ConversationLabel;
                 highlight.Hide();ShowResult(result);
@@ -128,13 +133,57 @@ namespace SnkMessage
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
             panel.Children.Add(ContextStatus());
-            if(mode==AiMode.Interpret)panel.Children.Add(ResultText(result.Text));
-            else foreach(string suggestion in result.Suggestions)
+            if(mode==AiMode.Interpret)
             {
-                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.MinHeight=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,4,6,4);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
-                button.Click+=delegate{var h=SuggestionChosen;var selectedMode=mode;if(h!=null)h(suggestion,context,selectedMode);Hide();};panel.Children.Add(button);
+                panel.Children.Add(ResultText(result.Text));
+                var reveal=FlatButton(new TextBlock{Text="生成回复建议",FontSize=12,FontWeight=FontWeights.SemiBold},12);reveal.Height=32;reveal.Margin=new Thickness(0,6,0,0);reveal.Foreground=Brush("#5A2DFC");
+                reveal.Click+=async delegate
+                {
+                    reveal.IsEnabled=false;
+                    if(result.Suggestions!=null&&result.Suggestions.Count==3)
+                    {
+                        panel.Children.Remove(reveal);AddSuggestionSection(panel,result.Suggestions,AiMode.Reply);ConstrainToScreenAfterLayout();
+                    }
+                    else
+                    {
+                        mode=AiMode.Reply;await RunAsync();
+                    }
+                };
+                panel.Children.Add(reveal);
+            }
+            else
+            {
+                if(mode==AiMode.Reply)panel.Children.Add(AdjustmentControls(result.Suggestions));
+                AddSuggestionButtons(panel,result.Suggestions,mode);
             }
             shell.Child=ResultScroller(panel);ConstrainToScreenAfterLayout();
+        }
+
+        private void AddSuggestionSection(Panel panel,IReadOnlyList<string> suggestions,AiMode selectedMode)
+        {
+            panel.Children.Add(new TextBlock{Text="回复建议",FontSize=12,FontWeight=FontWeights.SemiBold,Foreground=Brush("#433956"),Margin=new Thickness(2,10,2,5)});
+            panel.Children.Add(AdjustmentControls(suggestions));AddSuggestionButtons(panel,suggestions,selectedMode);
+        }
+
+        private void AddSuggestionButtons(Panel panel,IReadOnlyList<string> suggestions,AiMode selectedMode)
+        {
+            foreach(string suggestion in suggestions??Array.Empty<string>())
+            {
+                var button=FlatButton(new TextBlock{Text=suggestion,TextWrapping=TextWrapping.Wrap,FontSize=12,LineHeight=17},12);button.MinHeight=40;button.HorizontalContentAlignment=HorizontalAlignment.Left;button.Padding=new Thickness(6,4,6,4);button.Margin=new Thickness(0,0,0,4);button.Background=Brush("#CCFFFFFF");button.BorderThickness=new Thickness(1);button.BorderBrush=Brush("#00FFFFFF");ApplyInteractionColors(button,"#E9E2FF","#E1D9FF","#CCFFFFFF",true);
+                button.Click+=delegate{var h=SuggestionChosen;if(h!=null)h(suggestion,context,selectedMode);Hide();};panel.Children.Add(button);
+            }
+        }
+
+        private UIElement AdjustmentControls(IReadOnlyList<string> suggestions)
+        {
+            var row=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,5)};
+            AddAdjustment(row,"更简短","shorter",suggestions);AddAdjustment(row,"更委婉","softer",suggestions);AddAdjustment(row,"更直接","direct",suggestions);return row;
+        }
+
+        private void AddAdjustment(Panel panel,string label,string adjustment,IReadOnlyList<string> suggestions)
+        {
+            var button=FlatButton(new TextBlock{Text=label,FontSize=11},11);button.Height=27;button.Margin=new Thickness(0,0,5,0);button.Padding=new Thickness(8,0,8,0);button.Foreground=Brush("#5A2DFC");button.Background=Brush("#DDF0EBFF");ApplyInteractionColors(button,"#E2D8FF","#D5C7FF","#DDF0EBFF",false);
+            button.Click+=async delegate{mode=AiMode.Reply;await RunAsync(adjustment,suggestions);};panel.Children.Add(button);
         }
 
         private void ShowError(string message)
@@ -171,17 +220,19 @@ namespace SnkMessage
             string emptyReason=context==null||String.IsNullOrWhiteSpace(context.ContextDiagnostic)?"未读取到上下文":context.ContextDiagnostic;
             string subject=context==null||String.IsNullOrWhiteSpace(context.ConversationLabel)?String.Empty:"对象："+context.ConversationLabel+" · ";
             row.Children.Add(new TextBlock{Text=count>0?subject+"已参考 "+count+" 条附近消息":"仅分析选中文字 · "+emptyReason,FontSize=10,Foreground=Brush(count>0?"#6653A6":"#81798E"),TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center});
-            if(count>0)
+            var editLabel=new TextBlock{Text="编辑",FontSize=10,Foreground=Brush("#5A2DFC"),VerticalAlignment=VerticalAlignment.Center};Grid.SetColumn(editLabel,1);row.Children.Add(editLabel);
+            var edit=FlatButton(row,10);edit.HorizontalContentAlignment=HorizontalAlignment.Stretch;edit.Padding=new Thickness(2,2,2,2);edit.ToolTip="查看并修正本次上下文";
+            edit.Click+=async delegate
             {
-                var view=FlatButton(new TextBlock{Text="查看",FontSize=10},10);view.Foreground=Brush("#5A2DFC");view.Padding=new Thickness(5,1,5,1);Grid.SetColumn(view,1);
-                view.Click+=delegate
+                contextEditor=new ContextEditorWindow(context){Owner=this};
+                bool saved=false;
+                try{saved=contextEditor.ShowDialog()==true;}finally{contextEditor=null;}
+                if(saved)
                 {
-                    string details=String.Join(Environment.NewLine+Environment.NewLine,context.Context.Select((turn,index)=>(index+1)+". "+(turn.Role=="user"?"我":String.IsNullOrWhiteSpace(turn.Speaker)?"对方":"对方（"+turn.Speaker+"）")+"："+turn.Text));
-                    MessageBox.Show(details,"本次发送给模型的附近上下文",MessageBoxButton.OK,MessageBoxImage.Information);
-                };
-                row.Children.Add(view);
-            }
-            return row;
+                    await RunAsync();
+                }
+            };
+            return edit;
         }
         private static StackPanel IconLabel(UIElement icon,string label,double size){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=size,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}
         private static StackPanel TitleLabel(UIElement icon,string label){var p=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};p.Children.Add(icon);p.Children.Add(new TextBlock{Text=label,FontSize=13,FontWeight=FontWeights.SemiBold,LineHeight=20,LineStackingStrategy=LineStackingStrategy.BlockLineHeight,Margin=new Thickness(4,0,0,0),VerticalAlignment=VerticalAlignment.Center});return p;}

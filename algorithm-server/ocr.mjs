@@ -19,6 +19,7 @@ function getWorker() {
 }
 
 export async function enrichContextWithOcr(request) {
+  if (request.contextSource && Array.isArray(request.context)) return { request, source: request.contextSource };
   if (Array.isArray(request.context) && request.context.length > 0)
     return { request, source: "uia" };
   if (typeof request.ocrImageBase64 !== "string" || !request.ocrImageBase64)

@@ -15,7 +15,7 @@ export async function generate(request) {
     return {
       type: "interpretation",
       text: interpret(request.selectedText),
-      suggestions: [],
+      suggestions: replySuggestions,
     };
   }
 
