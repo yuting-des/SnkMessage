@@ -55,3 +55,14 @@ test("consecutive short chat messages are not mistaken for sender names", () => 
     { role: "other", text: "好喜欢她的人设！" },
   ]);
 });
+
+test("long right-aligned bubbles are recognized as my messages", () => {
+  const blocks = [{ paragraphs: [
+    { text: "你先看看这个版本", confidence: 95, bbox: { x0: 48, x1: 270, y0: 30, y1: 64 } },
+    { text: "我已经看完了，整体方向没问题，只需要再调整一下间距", confidence: 95, bbox: { x0: 300, x1: 940, y0: 85, y1: 128 } },
+  ] }];
+  assert.deepEqual(extractTurns(blocks, 1000), [
+    { role: "other", text: "你先看看这个版本" },
+    { role: "user", text: "我已经看完了，整体方向没问题，只需要再调整一下间距" },
+  ]);
+});

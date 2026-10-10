@@ -97,7 +97,10 @@ function chooseBalancedTail(entries, imageWidth, limit) {
 }
 
 function roleFor(entry, imageWidth) {
-  return imageWidth > 0 && entry.center > imageWidth * 0.57 ? "user" : "other";
+  if (!(imageWidth > 0)) return "other";
+  const leftGap = Math.max(0, entry.left);
+  const rightGap = Math.max(0, imageWidth - entry.right);
+  return rightGap + imageWidth * 0.04 < leftGap ? "user" : "other";
 }
 
 function clean(value) {

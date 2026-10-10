@@ -86,11 +86,13 @@ namespace SnkMessage
             var item=FlatButton(row,12);item.Height=32;item.HorizontalContentAlignment=HorizontalAlignment.Stretch;item.Padding=new Thickness(8,0,6,0);item.Foreground=mode==value?Brush("#5A2DFC"):Brush("#433956");item.Margin=new Thickness(0,0,0,2);item.Click+=async delegate{CloseMenu();mode=value;ShowBar();await RunAsync();};panel.Children.Add(item);
         }
 
-        private async Task RunAsync(string adjustment=null,IReadOnlyList<string> referenceSuggestions=null)
+        private async Task RunAsync(string adjustment=null,IReadOnlyList<string> referenceSuggestions=null,bool showAnalysisHighlight=true)
         {
             if(context==null)return;
             CancelOperation();var cancellation=new CancellationTokenSource();operationCancellation=cancellation;
-            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context,adjustment,referenceSuggestions);CloseMenu();if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
+            int version=++operationVersion;var requestedMode=mode;var request=AiRequest.FromSelection(requestedMode,context,adjustment,referenceSuggestions);CloseMenu();
+            if(showAnalysisHighlight){if(!context.OcrBounds.IsEmpty)highlight.ShowRegion(context.OcrBounds,DeviceToLogical);else highlight.ShowAround(context.TargetWindow,DeviceToLogical);}else highlight.Hide();
+            Topmost=false;Topmost=true;UseFixedSize(mode==AiMode.Interpret?220:212,34);shell.Padding=new Thickness(6);
             string loading=mode==AiMode.Interpret?"正在分析当前聊天":mode==AiMode.Reply?"正在生成回复建议":"正在优化表达";
             if(adjustment=="shorter")loading="正在生成更简短的建议";else if(adjustment=="softer")loading="正在生成更委婉的建议";else if(adjustment=="direct")loading="正在生成更直接的建议";
             int contextCount=context.Context==null?0:context.Context.Count;
@@ -107,6 +109,7 @@ namespace SnkMessage
                     context.ContextDiagnostic=result.ContextSource=="ocr"?"已通过本地 OCR 读取":result.ContextSource=="manual"?"已手动修正上下文":"已从微信消息列表读取";
                 }
                 if(!String.IsNullOrWhiteSpace(result.ConversationLabel))context.ConversationLabel=result.ConversationLabel;
+                context.OcrImageBase64=null;
                 highlight.Hide();ShowResult(result);
             }
             catch(OperationCanceledException){ }
@@ -131,7 +134,7 @@ namespace SnkMessage
         {
             UseAutoHeight(ResultWindowWidth);shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
-            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
+            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重新思考",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync(null,null,false);};header.Children.Add(retry);panel.Children.Add(header);
             panel.Children.Add(ContextStatus());
             if(mode==AiMode.Interpret)
             {
@@ -146,7 +149,7 @@ namespace SnkMessage
                     }
                     else
                     {
-                        mode=AiMode.Reply;await RunAsync();
+                        mode=AiMode.Reply;await RunAsync(null,null,false);
                     }
                 };
                 panel.Children.Add(reveal);
@@ -183,14 +186,14 @@ namespace SnkMessage
         private void AddAdjustment(Panel panel,string label,string adjustment,IReadOnlyList<string> suggestions)
         {
             var button=FlatButton(new TextBlock{Text=label,FontSize=11},11);button.Height=27;button.Margin=new Thickness(0,0,5,0);button.Padding=new Thickness(8,0,8,0);button.Foreground=Brush("#5A2DFC");button.Background=Brush("#DDF0EBFF");ApplyInteractionColors(button,"#E2D8FF","#D5C7FF","#DDF0EBFF",false);
-            button.Click+=async delegate{mode=AiMode.Reply;await RunAsync(adjustment,suggestions);};panel.Children.Add(button);
+            button.Click+=async delegate{mode=AiMode.Reply;await RunAsync(adjustment,suggestions,false);};panel.Children.Add(button);
         }
 
         private void ShowError(string message)
         {
             UseAutoHeight(ResultWindowWidth);shell.Padding=new Thickness(6);shell.Background=new LinearGradientBrush(Color.FromArgb(238,247,240,254),Color.FromArgb(238,230,229,253),0);
             var panel=new StackPanel();var header=new Grid{Height=24,Margin=new Thickness(0,0,0,4)};header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
-            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重试",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync();};header.Children.Add(retry);panel.Children.Add(header);
+            header.Children.Add(TitleLabel(SparkleIcon(20),ModeName(mode)));var retry=FlatButton(IconLabel(ReloadIcon(),"重试",12),12);retry.Foreground=Brush("#5A2DFC");retry.Padding=new Thickness(4,0,4,0);Grid.SetColumn(retry,1);retry.Click+=async delegate{await RunAsync(null,null,false);};header.Children.Add(retry);panel.Children.Add(header);
             panel.Children.Add(ResultText(message));shell.Child=ResultScroller(panel);ConstrainToScreenAfterLayout();
         }
 
@@ -229,7 +232,7 @@ namespace SnkMessage
                 try{saved=contextEditor.ShowDialog()==true;}finally{contextEditor=null;}
                 if(saved)
                 {
-                    await RunAsync();
+                    await RunAsync(null,null,false);
                 }
             };
             return edit;
