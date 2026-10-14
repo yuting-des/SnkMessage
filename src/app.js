@@ -11,7 +11,7 @@ function dispatch(event){state=reducer(state,event);render();}
 function announce(text){$('#announcement').textContent=text;}
 function position(){const box=overlay.getBoundingClientRect();overlay.style.left=`${Math.max(12,Math.min(anchor.left,innerWidth-box.width-12))}px`;overlay.style.top=`${Math.max(12,anchor.top-box.height-10 < 12 ? Math.min(anchor.bottom+10,innerHeight-box.height-12) : anchor.top-box.height-10)}px`;}
 function render(){
- $('.chat').classList.toggle('analyzing',state.phase==='loading');
+ $('.chat').classList.toggle('analyzing',state.phase==='loading'&&state.highlight);
  $('.chat').setAttribute('aria-busy',String(state.phase==='loading'));
  $('#send').disabled=!state.intent.trim();
  overlay.replaceChildren();overlay.hidden=state.phase==='idle';
@@ -19,7 +19,7 @@ function render(){
  overlay.className='ai-surface';
  if(state.phase==='quick'){
   overlay.classList.add('quick');
-  const b=button(labels[state.kind],'quick-action',run);
+  const b=button(labels[state.kind],'quick-action',()=>run());
   b.prepend(icon('sparkle'));overlay.append(b);
   overlay.classList.toggle('reply-mode',state.kind!=='interpret');
   const toggle=button('','menu-toggle',()=>{dispatch({type:'MENU'});overlay.querySelector(state.menuOpen?'[role="menuitemradio"]':'.menu-toggle')?.focus({preventScroll:true});});
@@ -33,27 +33,42 @@ function render(){
   }
  }else if(state.phase==='loading'){
   overlay.classList.add('toast');overlay.setAttribute('role','status');
-  const img=icon('loading');img.className='spinner';overlay.append(img,document.createTextNode(state.kind==='interpret'?'正在分析当前聊天':state.kind==='reply'?'正在生成回复建议':'正在优化表达'));
+  const img=icon('loading');img.className='spinner';overlay.append(img,document.createTextNode(state.adjustment?{shorter:'正在生成更简短的建议',softer:'正在生成更委婉的建议',direct:'正在生成更直接的建议'}[state.adjustment]:state.kind==='interpret'?'正在分析当前聊天':state.kind==='reply'?'正在生成回复建议':'正在优化表达'));
  }else{
   overlay.removeAttribute('role');overlay.classList.add(state.kind==='interpret'?'interpret-card':'expression-card');
   const head=document.createElement('div');head.className='card-header';
   const title=document.createElement('span');title.className='card-title';title.append(icon('sparkle'),document.createTextNode(labels[state.kind]));
-  const retry=button('重新思考','regenerate',run);retry.prepend(icon('reload'));head.append(title,retry);overlay.append(head);
+  const retry=button('重新思考','regenerate',()=>run({highlight:false}));retry.prepend(icon('reload'));head.append(title,retry);overlay.append(head);
   if(state.phase==='error'){const p=document.createElement('p');p.className='interpret-text';p.textContent='暂时未能完成，请重试。';overlay.append(p);}
-  else if(state.kind==='interpret'){const p=document.createElement('p');p.className='interpret-text';p.textContent=state.result.interpretation;overlay.append(p);}
-  else state.result.suggestions.forEach((text,index)=>{const suggestion=button(text,'suggestion',()=>{
-   dispatch({type:'APPLY',text});input.value=state.intent;input.focus();input.setSelectionRange(input.value.length,input.value.length);announce('已替换输入内容，请检查后手动发送。');
-  });if(state.result.suggestionLabels?.[index]){const label=document.createElement('span');label.className='suggestion-label';label.textContent=state.result.suggestionLabels[index];suggestion.prepend(label);}overlay.append(suggestion);});
+  else if(state.kind==='interpret'){
+   const p=document.createElement('p');p.className='interpret-text';p.textContent=state.result.interpretation;overlay.append(p);
+   if(state.suggestionsExpanded){const heading=document.createElement('div');heading.className='suggestion-heading';heading.textContent='回复建议';overlay.append(heading);addSuggestions(true);}
+   else overlay.append(button('生成回复建议','reveal-suggestions',()=>{
+    if(state.result.suggestions?.length===3){dispatch({type:'REVEAL'});overlay.querySelector('.adjustment')?.focus({preventScroll:true});}
+    else run({kind:'reply',highlight:false});
+   }));
+  }
+  else addSuggestions(state.kind==='reply');
  }
  position();
  const menu=overlay.querySelector('.mode-menu');if(menu){const rect=overlay.getBoundingClientRect();menu.classList.toggle('below',rect.top<130);menu.style.left=`${Math.min(0,innerWidth-12-rect.left-144)}px`;}
 }
-async function run(){
+function addSuggestions(adjustable){
+ if(adjustable){
+  const controls=document.createElement('div');controls.className='adjustments';
+  for(const [adjustment,label] of Object.entries({shorter:'更简短',softer:'更委婉',direct:'更直接'}))controls.append(button(label,'adjustment',()=>run({kind:'reply',adjustment,referenceSuggestions:state.result.suggestions,highlight:false})));
+  overlay.append(controls);
+ }
+ state.result.suggestions.forEach((text,index)=>{const suggestion=button(text,'suggestion',()=>{
+   dispatch({type:'APPLY',text});input.value=state.intent;input.focus();input.setSelectionRange(input.value.length,input.value.length);announce('已替换输入内容，请检查后手动发送。');
+  });if(state.result.suggestionLabels?.[index]){const label=document.createElement('span');label.className='suggestion-label';label.textContent=state.result.suggestionLabels[index];suggestion.prepend(label);}overlay.append(suggestion);});
+}
+async function run({kind=state.kind,adjustment=null,referenceSuggestions=[],highlight=true}={}){
  if(state.phase==='loading')return;
 
- dispatch({type:'START'});const requestId=state.requestId;
+ dispatch({type:'START',kind,adjustment,highlight});const requestId=state.requestId;
  try{
-  const result=await ai[state.kind]({selectedText:state.selectedText,context:[],language:'zh-CN'});
+  const result=await ai[kind]({selectedText:state.selectedText,adjustment,referenceSuggestions,context:[],language:'zh-CN'});
   dispatch({type:'RESULT',requestId,result});
   if(state.requestId===requestId){announce(state.kind==='interpret'?result.interpretation:'表达建议已生成，点击可替换输入。');overlay.querySelector('button')?.focus({preventScroll:true});}
  }catch{dispatch({type:'ERROR',requestId});}

@@ -5,3 +5,16 @@ test('late AI result cannot reopen dismissed overlay',()=>{let s=reducer(initial
 test('applying a suggestion changes the draft without sending',()=>{let s={...initialState(),kind:'express',phase:'result',intent:'原意图',result:{suggestions:['新的表达']}};s=reducer(s,{type:'APPLY',text:'新的表达'});assert.equal(s.intent,'新的表达');assert.equal(s.phase,'idle');s=reducer(s,{type:'SEND'});assert.equal(s.intent,'');});
 test('editing while loading invalidates result',()=>{let s=reducer(initialState(),{type:'START'});const id=s.requestId;s=reducer(s,{type:'EDIT',value:'新想法'});s=reducer(s,{type:'RESULT',requestId:id,result:{suggestions:['过期']}});assert.equal(s.phase,'idle');assert.equal(s.intent,'新想法');});
 test('empty draft cannot be sent and reset invalidates pending results',()=>{let s=initialState();assert.equal(reducer(s,{type:'SEND'}),s);s=reducer(s,{type:'START'});const id=s.requestId;s=reducer(s,{type:'RESET'});assert.equal(reducer(s,{type:'RESULT',requestId:id,result:{}}).phase,'idle');});
+test('bundled replies require reveal before applying and never send automatically',()=>{
+ let s={...initialState(),kind:'interpret',phase:'result',result:{interpretation:'解读',suggestions:['拒绝','待定','参加']}};
+ assert.equal(reducer(s,{type:'APPLY',text:'拒绝'}),s);
+ s=reducer(s,{type:'REVEAL'});assert.equal(s.result.interpretation,'解读');assert.equal(s.suggestionsExpanded,true);
+ s=reducer(s,{type:'APPLY',text:'拒绝'});assert.equal(s.intent,'拒绝');assert.equal(s.phase,'idle');
+});
+test('adjustment switches to reply without highlighting and reset invalidates it',()=>{
+ let s={...initialState(),kind:'interpret',phase:'result',suggestionsExpanded:true};
+ s=reducer(s,{type:'START',kind:'reply',adjustment:'softer',highlight:false});
+ assert.equal(s.kind,'reply');assert.equal(s.highlight,false);assert.equal(s.suggestionsExpanded,false);
+ const id=s.requestId;s=reducer(s,{type:'RESET'});
+ assert.equal(reducer(s,{type:'RESULT',requestId:id,result:{suggestions:['旧建议']}}).phase,'idle');
+});
