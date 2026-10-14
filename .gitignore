@@ -5,3 +5,6 @@ native-windows/bin/
 native-windows/obj/
 .tools/
 algorithm-server/.env.local
+.video-tools/
+recording-frames*/
+SnkMessage-portfolio-demo*.mp4

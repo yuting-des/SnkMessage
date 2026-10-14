@@ -86,7 +86,7 @@ function selection(){
  anchor=range.getBoundingClientRect();dispatch({type:'SELECT',kind:'interpret',text:selected.toString().trim()});
 }
 document.addEventListener('pointerup',event=>{if(!overlay.contains(event.target))selection();});
-document.addEventListener('keyup',event=>{if(!overlay.contains(event.target)&&(event.key==='Shift'||event.key.startsWith('Arrow')||(event.ctrlKey&&event.key==='a')))selection();});
+document.addEventListener('keyup',event=>{if(!overlay.contains(event.target)&&(event.key==='Shift'||event.key.startsWith('Arrow')||((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a')))selection();});
 overlay.addEventListener('pointerdown',event=>event.preventDefault());
 document.addEventListener('pointerdown',event=>{if(!overlay.contains(event.target)&&state.phase!=='idle')dispatch({type:'DISMISS'});});
 document.addEventListener('keydown',event=>{
@@ -106,7 +106,8 @@ function send(){
  dispatch({type:'SEND'});input.value='';input.focus();messages.scrollTop=messages.scrollHeight;announce('消息已发送到演示会话。');
 }
 $('#send').addEventListener('click',send);
-input.addEventListener('keydown',event=>{if(event.ctrlKey&&event.key==='Enter'&&!event.isComposing){event.preventDefault();send();}});
+input.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!event.isComposing){event.preventDefault();send();}});
+if(/Mac/.test(navigator.platform))$('#send span').textContent='⌘ + Enter';
 $('#reset').addEventListener('click',()=>{dispatch({type:'RESET'});input.value='';messages.innerHTML=originalMessages;window.getSelection()?.removeAllRanges();announce('已重置演示。');});
 window.addEventListener('resize',()=>dispatch({type:'DISMISS'}));
 messages.addEventListener('scroll',()=>{if(state.phase!=='idle')dispatch({type:'DISMISS'});});
