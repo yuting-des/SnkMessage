@@ -24,10 +24,12 @@ export const ai = {
  },
  async express({selectedText}) {
   await delay();
-  if (/周六不想去|你们自己去/.test(selectedText)) return {suggestionLabels:['更简短','更委婉','更直接'],suggestions:['周六我就不去了，你们玩得开心！','不好意思呀，这周六我想在家休息一下。你们玩得开心，下次有机会我们再一起聚！','这周六我不参加聚会了，想留点时间给自己。你们按原计划聚就好。']};
-  if (/不认同|不赞同/.test(selectedText)) return {suggestions:['我有不同的看法，想先了解具体问题。','对此我有些保留，能否先明确问题所在？','我暂时不太认同，希望先把具体问题讨论清楚。']};
-  // For other input preserve the user's wording; never invent a stance in this mock.
+  const suggestionLabels=['更简短','更委婉','更直接'];
+  if (/不去|不想去|不参加|不想参加|去不了|没法去|不能去|你们自己去/.test(selectedText)) return {suggestionLabels,suggestions:['这次我就不去了，你们玩得开心！','不好意思呀，这次聚会我就先不参加了。你们玩得开心，下次有机会我们再一起聚！','这次聚会我不参加，你们按原计划安排就好。']};
+  if (/不认同|不赞同/.test(selectedText)) return {suggestionLabels,suggestions:['我有不同看法。','这个想法我有些保留，希望能和你再讨论一下。','我不认同这个想法，建议先讨论清楚再决定。']};
+  // Other local demo inputs also expose all three styles, preserving the selected intent.
   const text=selectedText.trim().replace(/[。！？?！]+$/u,'');
-  return {suggestions:[`${text}。`,`我的想法是：${text}。`]};
+  const concise=text.replace(/^(我觉得|我认为|我的想法是[：:]?|其实|就是)\s*/u,'').replace(/，?(你们自己去吧|就这样吧)$/u,'')||text;
+  return {suggestionLabels,suggestions:[`${concise}。`,`我想和你商量一下：${text}。希望你能理解。`,`我的意思是：${text}。`]};
  }
 };

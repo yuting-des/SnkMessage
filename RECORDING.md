@@ -22,4 +22,4 @@
 
 ## 验证
 
-现有 25 项测试通过。若 Windows 沙箱限制子进程，可执行 `node --test --test-isolation=none tests/*.test.mjs`。页面已人工验证解读内展开回复、语气调整和点击建议填入草稿。
+现有 26 项测试通过。若 Windows 沙箱限制子进程，可执行 `node --test --test-isolation=none tests/*.test.mjs`。页面已人工验证解读内展开回复、语气调整和点击建议填入草稿。
