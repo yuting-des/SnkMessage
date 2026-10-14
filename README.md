@@ -1,5 +1,7 @@
 # Message Replier
 
+> 当前作品集分支 `codex/portfolio-wechat-demo` 已将浏览器 / Electron demo 替换为虚构微信聚会邀请场景，三种功能采用本地预设结果。启动和完整录制步骤见 [RECORDING.md](./RECORDING.md)。下方原有浏览器场景说明对应基础版本。
+
 项目包含两部分：保留用于 UI 对照的浏览器 Demo，以及可在真实微信中工作的原生 Windows AI Bar。当前开发重点是原生版本；最初的模拟微信版本保存在 `archive/uidemo` 分支。
 
 ## 原生 Windows 版本

@@ -41,9 +41,9 @@ function render(){
   const retry=button('重新思考','regenerate',run);retry.prepend(icon('reload'));head.append(title,retry);overlay.append(head);
   if(state.phase==='error'){const p=document.createElement('p');p.className='interpret-text';p.textContent='暂时未能完成，请重试。';overlay.append(p);}
   else if(state.kind==='interpret'){const p=document.createElement('p');p.className='interpret-text';p.textContent=state.result.interpretation;overlay.append(p);}
-  else state.result.suggestions.forEach(text=>overlay.append(button(text,'suggestion',()=>{
+  else state.result.suggestions.forEach((text,index)=>{const suggestion=button(text,'suggestion',()=>{
    dispatch({type:'APPLY',text});input.value=state.intent;input.focus();input.setSelectionRange(input.value.length,input.value.length);announce('已替换输入内容，请检查后手动发送。');
-  })));
+  });if(state.result.suggestionLabels?.[index]){const label=document.createElement('span');label.className='suggestion-label';label.textContent=state.result.suggestionLabels[index];suggestion.prepend(label);}overlay.append(suggestion);});
  }
  position();
  const menu=overlay.querySelector('.mode-menu');if(menu){const rect=overlay.getBoundingClientRect();menu.classList.toggle('below',rect.top<130);menu.style.left=`${Math.min(0,innerWidth-12-rect.left-144)}px`;}
@@ -97,6 +97,31 @@ window.addEventListener('resize',()=>dispatch({type:'DISMISS'}));
 messages.addEventListener('scroll',()=>{if(state.phase!=='idle')dispatch({type:'DISMISS'});});
 window.addEventListener('scroll',()=>{if(state.phase!=='idle')dispatch({type:'DISMISS'});});
 render();
+
+// Preparation buttons use the same selection / request / apply flow as manual interaction.
+document.querySelectorAll('[data-demo]').forEach(control=>control.addEventListener('click',()=>{
+ const kind=control.dataset.demo;
+ window.getSelection()?.removeAllRanges();
+ if(kind==='express'){
+  input.value='我周六不想去了，你们自己去吧。';
+  dispatch({type:'EDIT',value:input.value});input.focus();input.select();
+  anchor=input.getBoundingClientRect();
+  dispatch({type:'SELECT',kind,text:input.value});
+ }else{
+  const target=$('#demo-target');const range=document.createRange();range.selectNodeContents(target);
+  window.getSelection().addRange(range);anchor=target.getBoundingClientRect();
+  dispatch({type:'SELECT',kind,text:target.textContent});
+ }
+}));
+function setRecording(active){
+ document.body.classList.toggle('recording',active);
+ $('#recording').setAttribute('aria-pressed',String(active));
+ $('#recording').textContent=active?'退出录制视图':'进入录制视图';
+ dispatch({type:'DISMISS'});
+}
+$('#recording').addEventListener('click',()=>setRecording(!document.body.classList.contains('recording')));
+document.addEventListener('keydown',event=>{if(event.altKey&&event.key.toLowerCase()==='r'){event.preventDefault();setRecording(!document.body.classList.contains('recording'));}});
+if(new URLSearchParams(location.search).has('record'))setRecording(true);
 
 if (window.snkWindow) {
  const controls=$('#desktop-controls');controls.hidden=false;document.body.classList.add('desktop-app');
