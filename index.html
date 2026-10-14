@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SnkMessage · 作品集演示</title><link rel="stylesheet" href="./src/styles.css"></head>
+<body>
+ <div id="desktop-controls" class="desktop-controls" hidden><div class="desktop-drag"><img src="./assets/sparkle.svg" alt=""><span>SnkMessage</span></div><button id="toggle-top" title="取消置顶" aria-pressed="true">置顶</button><button id="minimize-window" title="最小化">—</button><button id="hide-window" title="隐藏到托盘">×</button></div>
+ <header class="page-header"><div class="brand"><img src="./assets/sparkle.svg" alt=""><strong>SnkMessage</strong><span class="badge">作品集演示</span></div><div><button id="recording" class="quiet" aria-pressed="false">进入录制视图</button><button id="reset" class="quiet">重置会话 ↺</button></div></header>
+ <main><section class="intro"><div class="eyebrow">让表达，回到你的本意</div><h1>先理解，再表达。</h1><p>想拒绝一次聚会，又不想让朋友失望。</p></section>
+ <section class="window" aria-label="虚构微信聊天窗口"><div class="titlebar"><span><span class="app-dot"></span> 微信</span><span class="window-chrome" aria-hidden="true">─　 □　 ×</span></div>
+ <div class="window-body"><aside class="contacts"><div class="contacts-title">微信 <span>＋</span></div><div class="contact active"><span class="avatar">满</span><div><strong>林小满</strong><p>大家都挺想见你的…</p></div><time>18:35</time></div><div class="contact muted"><span class="avatar blue">聚</span><div><strong>周末小分队</strong><p>周六见！</p></div></div><div class="contact muted"><span class="avatar peach">周</span><div><strong>周然</strong><p>好的，收到</p></div></div><div class="local-note">虚构会话 · 本地演示</div></aside>
+ <section class="chat"><header class="chat-header"><div><strong>林小满</strong><span>朋友</span></div><span aria-hidden="true">···</span></header><div id="messages" class="messages" aria-label="聊天消息">
+ <div class="date">今天 18:32</div>
+ <div class="message incoming"><span class="avatar">满</span><div class="bubble selectable">这周六我们几个准备一起吃个饭，好久没聚了，你也来吧！</div></div>
+ <div class="message outgoing"><div class="bubble selectable">哈哈好呀，你们定在哪儿？</div><span class="avatar self">我</span></div>
+ <div class="message incoming"><span class="avatar">满</span><div class="bubble selectable">还没定呢，大概在静安寺附近。你最近不是工作挺忙的吗？周末应该有空了吧？</div></div>
+ <div class="date">18:35</div>
+ <div class="message incoming"><span class="avatar">满</span><div id="demo-target" class="bubble selectable" tabindex="0" aria-label="可选中的聚会邀请">大家都挺想见你的，你可别又临时放我们鸽子哈哈哈</div></div>
+ </div>
+ <div class="composer"><label class="sr-only" for="intent">你的真实想法</label><textarea id="intent" placeholder="写下你的真实想法…" spellcheck="false"></textarea><div class="composer-footer"><span id="compose-hint">选中输入的文字，可优化表达</span><button id="send" disabled>发送 <span>Ctrl + Enter</span></button></div></div></section></div></section>
+ <footer class="guide" aria-label="录制准备"><button data-demo="interpret"><b>01</b> 解读并生成回复</button><button data-demo="express"><b>02</b> 优化自己的表达</button></footer><p class="demo-note">虚构微信环境 · AI 结果为本地预设 · 点击建议填入草稿，由你决定是否发送</p>
+ </main><div id="overlay" hidden></div><div id="announcement" class="sr-only" role="status" aria-live="polite"></div><script type="module" src="./src/app.js"></script>
+</body></html>
