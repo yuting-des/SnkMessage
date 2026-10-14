@@ -24,7 +24,7 @@ export const ai = {
  },
  async express({selectedText}) {
   await delay();
-  if (/周六不想去|你们自己去/.test(selectedText)) return {suggestionLabels:['更委婉','更简洁','更亲近'],suggestions:['不好意思呀，这周六我想在家休息一下，最近确实有点累。你们玩得开心，下次有机会我们再一起聚！','这周六我想休息一下，就先不去了。你们玩得开心，我们下次再约！','哈哈这次我想给自己放个假，在家充充电。你们好好聚，下次我再一起！']};
+  if (/周六不想去|你们自己去/.test(selectedText)) return {suggestionLabels:['更简短','更委婉','更直接'],suggestions:['周六我就不去了，你们玩得开心！','不好意思呀，这周六我想在家休息一下。你们玩得开心，下次有机会我们再一起聚！','这周六我不参加聚会了，想留点时间给自己。你们按原计划聚就好。']};
   if (/不认同|不赞同/.test(selectedText)) return {suggestions:['我有不同的看法，想先了解具体问题。','对此我有些保留，能否先明确问题所在？','我暂时不太认同，希望先把具体问题讨论清楚。']};
   // For other input preserve the user's wording; never invent a stance in this mock.
   const text=selectedText.trim().replace(/[。！？?！]+$/u,'');
