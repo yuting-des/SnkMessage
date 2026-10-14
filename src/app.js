@@ -9,7 +9,7 @@ const icon=(name)=>{const img=document.createElement('img');img.src=`./assets/${
 function button(text,cls,action){const b=document.createElement('button');b.textContent=text;b.className=cls;b.addEventListener('click',action);return b;}
 function dispatch(event){state=reducer(state,event);render();}
 function announce(text){$('#announcement').textContent=text;}
-function position(){const box=overlay.getBoundingClientRect();overlay.style.left=`${Math.max(12,Math.min(anchor.left,innerWidth-box.width-12))}px`;overlay.style.top=`${Math.max(12,anchor.top-box.height-10 < 12 ? Math.min(anchor.bottom+10,innerHeight-box.height-12) : anchor.top-box.height-10)}px`;}
+function position(){const scale=Number.parseFloat(getComputedStyle(document.body).zoom)||1;const box=overlay.getBoundingClientRect();overlay.style.left=`${Math.max(12,Math.min(anchor.left,innerWidth-box.width-12))/scale}px`;overlay.style.top=`${Math.max(12,anchor.top-box.height-10 < 12 ? Math.min(anchor.bottom+10,innerHeight-box.height-12) : anchor.top-box.height-10)/scale}px`;}
 function render(){
  $('.chat').classList.toggle('analyzing',state.phase==='loading'&&state.highlight);
  $('.chat').setAttribute('aria-busy',String(state.phase==='loading'));
@@ -137,6 +137,7 @@ function setRecording(active){
 $('#recording').addEventListener('click',()=>setRecording(!document.body.classList.contains('recording')));
 document.addEventListener('keydown',event=>{if(event.altKey&&event.key.toLowerCase()==='r'){event.preventDefault();setRecording(!document.body.classList.contains('recording'));}});
 if(new URLSearchParams(location.search).has('record'))setRecording(true);
+if(new URLSearchParams(location.search).has('hd'))document.body.classList.add('hd-recording');
 
 if (window.snkWindow) {
  const controls=$('#desktop-controls');controls.hidden=false;document.body.classList.add('desktop-app');
