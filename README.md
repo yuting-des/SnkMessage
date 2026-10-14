@@ -2,6 +2,10 @@
 
 > 当前作品集分支 `codex/portfolio-wechat-demo` 已将浏览器 / Electron demo 替换为虚构微信聚会邀请场景，三种功能采用本地预设结果。启动和完整录制步骤见 [RECORDING.md](./RECORDING.md)。下方原有浏览器场景说明对应基础版本。
 
+在线体验：[SnkMessage Demo](https://yuting-des.github.io/SnkMessage/)；[录制视图](https://yuting-des.github.io/SnkMessage/?record)。Windows / Mac 均可直接通过浏览器打开。Mac 支持 ⌘A 选区和 ⌘Enter 手动发送。网页只在本地生成预设结果，不需要安装 Node.js。
+
+执行 `npm run build:pages` 生成 `dist/pages`，发布内容仅包含页面、前端脚本和四个 SVG 图标；GitHub Pages 使用 `gh-pages` 分支根目录。
+
 项目包含两部分：保留用于 UI 对照的浏览器 Demo，以及可在真实微信中工作的原生 Windows AI Bar。当前开发重点是原生版本；最初的模拟微信版本保存在 `archive/uidemo` 分支。
 
 ## 原生 Windows 版本
